@@ -1,0 +1,94 @@
+import torch.nn as nn
+import torch.nn.functional as f
+import torch
+
+
+class RNN(nn.Module):
+    # Because all the agents share the same network, input_shape=obs_shape+n_actions+n_agents
+    def __init__(self, input_shape, input_shape_view, input_shape_feature, args):
+        super(RNN, self).__init__()
+        self.args = args
+        self.input_shape_view = input_shape_view
+        self.input_shape_feature = input_shape_feature
+
+        self.fc1 = nn.Linear(input_shape_view, args.rnn_hidden_dim)
+        self.rnn = nn.GRUCell(args.rnn_hidden_dim + input_shape_feature, args.rnn_hidden_dim + input_shape_feature)
+        self.fc2 = nn.Linear(args.rnn_hidden_dim + input_shape_feature, args.n_actions)
+
+    def forward(self, obs, hidden_state):
+        view = obs[:, :self.input_shape_view]
+        feature = obs[:, -self.input_shape_feature:]
+
+        # x = f.relu(self.fc1(obs))
+        x = f.relu(self.fc1(view))
+        h = torch.cat((x, feature), dim=1)
+        h_in = hidden_state.reshape(-1, self.args.rnn_hidden_dim + self.input_shape_feature)
+        h = self.rnn(h, h_in)
+        q = self.fc2(h)
+        return q, h
+
+
+class MLP(nn.Module):
+    # Because all the agents share the same network, input_shape=obs_shape+n_actions+n_agents
+    def __init__(self, input_shape_view, input_shape_feature, args):
+        super(MLP, self).__init__()
+        self.args = args
+        self.input_shape_view = input_shape_view
+        self.input_shape_feature = input_shape_feature
+
+        self.fc1 = nn.Linear(input_shape_view, args.rnn_hidden_dim)
+        self.fc2 = nn.Linear(args.rnn_hidden_dim + input_shape_feature, args.rnn_hidden_dim)
+        self.fc3 = nn.Linear(args.rnn_hidden_dim, args.n_actions)
+
+    def forward(self, obs):
+        # print(obs)
+        view = obs[:self.input_shape_view]
+        feature = obs[self.input_shape_feature:]
+        x = f.relu(self.fc1(view))
+        h = torch.cat((x, feature), dim=0)
+        # print(self.fc1(obs))
+        h = f.relu(self.fc2(h))
+        q = self.fc3(h)
+        # print(q)
+        return q
+
+
+# class ConvNet(nn.Module):
+#     def __init__(self, input_shape, args):
+#         super(ConvNet, self).__init__()
+#         self.layer1 = nn.Sequential(
+#             nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=2),
+#             nn.BatchNorm2d(16),
+#             nn.ReLU(),
+#             )
+#
+#         self.layer2 = nn.Sequential(
+#             nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=2),
+#             nn.BatchNorm2d(32),
+#             nn.ReLU(),
+#             )
+#
+#         self.fc1 = nn.Linear(7 * 7 * 32, num_classes)
+#         # 前馈网络过程
+#
+#     def forward(self, x):
+#         out = self.layer1(x)
+#         out = self.layer2(out)
+#         out = out.reshape(out.size(0), -1)
+#         out = self.fc(out)
+#         return out
+
+# Critic of Central-V
+class Critic(nn.Module):
+    def __init__(self, input_shape, args):
+        super(Critic, self).__init__()
+        self.args = args
+        self.fc1 = nn.Linear(input_shape, args.critic_dim)
+        self.fc2 = nn.Linear(args.critic_dim, args.critic_dim)
+        self.fc3 = nn.Linear(args.critic_dim, 1)
+
+    def forward(self, inputs):
+        x = f.relu(self.fc1(inputs))
+        x = f.relu(self.fc2(x))
+        q = self.fc3(x)
+        return q
