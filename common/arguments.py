@@ -29,7 +29,7 @@ def get_common_args():
     parser.add_argument('--result_dir', type=str, default='./result', help='result directory of the policy')
     parser.add_argument('--load_model', type=bool, default=False, help='whether to load the pretrained model')
     parser.add_argument('--learn', type=bool, default=True, help='whether to train the model')
-    parser.add_argument('--cuda', type=bool, default=False, help='whether to use the GPU')
+    parser.add_argument('--cuda', type=bool, default=True, help='whether to use the GPU')
     args = parser.parse_args()
     return args
 
@@ -102,7 +102,7 @@ def get_mixer_args(args):
     args.evaluate_cycle = 10
 
     # experience replay
-    args.batch_size = 32
+    args.batch_size = 2
     args.buffer_size = int(2e2)
 
     # how often to save the model

@@ -61,6 +61,7 @@ class RolloutWorker:
             feature = obs_all[1]
             obs = []
             for j in range(self.n_agents):
+                # print(np.array(view[j]).shape)
                 obs.append(np.concatenate([view[j].flatten(), feature[j]]))
                 state = feature[j]
             # obs = self.env.get_obs()
@@ -81,7 +82,8 @@ class RolloutWorker:
                 if isinstance(action, np.int64):
                     action = action.astype(np.int32)
                 else:
-                    action = action.int()
+                    action = action.cpu()
+                    action = action.numpy().astype(np.int32)
                 actions.append(action)
                 actions_onehot.append(action_onehot)
                 avail_actions.append(avail_action)

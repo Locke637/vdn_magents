@@ -5,7 +5,7 @@ from common.arguments import get_common_args, get_coma_args, get_mixer_args, get
     get_commnet_args, get_g2anet_args
 
 if __name__ == '__main__':
-    for i in range(8):
+    for i in range(1):
         args = get_common_args()
         if args.alg.find('coma') > -1:
             args = get_coma_args(args)
@@ -40,7 +40,8 @@ if __name__ == '__main__':
         args.n_agents = 2
         args.state_shape = feature_dim[0]
         args.obs_shape = obs_shape[0]
-        args.view_shape = obs_shape[0]
+        args.view_shape = v_dim_total
+        # print(obs_shape[0])
         args.feature_shape = feature_dim[0]
         args.episode_limit = 550
         runner = Runner(env, args)
