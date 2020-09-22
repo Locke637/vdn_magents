@@ -25,7 +25,7 @@ if __name__ == '__main__':
         #                     game_version=args.game_version,
         #                     replay_dir=args.replay_dir)
         # env = magent.GridWorld("battle", map_size=30)
-        env = magent.GridWorld("pursuit", map_size=40)
+        env = magent.GridWorld("pursuit", map_size=80)
         handles = env.get_handles()
         eval_obs = None
         feature_dim = env.get_feature_space(handles[0])

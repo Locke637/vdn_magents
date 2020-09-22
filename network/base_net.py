@@ -62,18 +62,18 @@ class ConvNet_RNN(nn.Module):
         self.input_shape_feature = input_shape_feature
 
         self.layer1 = nn.Sequential(
-            nn.Conv2d(10, 16, kernel_size=3, stride=1, padding=2),
-            nn.BatchNorm2d(16),
+            nn.Conv2d(10, 32, kernel_size=3, stride=1, padding=2),
+            nn.BatchNorm2d(32),
             nn.ReLU(),
         )
 
         self.layer2 = nn.Sequential(
-            nn.Conv2d(16, 16, kernel_size=3, stride=1, padding=2),
-            nn.BatchNorm2d(16),
+            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=2),
+            nn.BatchNorm2d(32),
             nn.ReLU(),
         )
 
-        self.fc1 = nn.Linear(2016, args.rnn_hidden_dim)
+        self.fc1 = nn.Linear(4032, args.rnn_hidden_dim)
         self.rnn = nn.GRUCell(args.rnn_hidden_dim + input_shape_feature, args.rnn_hidden_dim + input_shape_feature)
         self.fc2 = nn.Linear(args.rnn_hidden_dim + input_shape_feature, args.n_actions)
 
@@ -86,7 +86,7 @@ class ConvNet_RNN(nn.Module):
         # x = f.relu(self.fc1(obs))
         out = self.layer1(view)
         out = self.layer2(out)
-        out = out.reshape(-1, 2016)
+        out = out.reshape(-1, 4032)
         # print(out.size())
         x = f.relu(self.fc1(out))
         h = torch.cat((x, feature), dim=1)
