@@ -1,6 +1,6 @@
 import torch
 import os
-from network.base_net import RNN, MLP, ConvNet_RNN
+from network.base_net import RNN, MLP, ConvNet_RNN, ConvNet_MLP
 from network.vdn_net import VDNNet
 
 
@@ -23,8 +23,8 @@ class VDN:
         # 神经网络
         # self.eval_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
         # self.target_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)
-        self.eval_rnn = ConvNet_RNN(input_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
-        self.target_rnn = ConvNet_RNN(input_shape, input_shape_view, input_shape_feature, args)
+        self.eval_rnn = ConvNet_MLP(input_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
+        self.target_rnn = ConvNet_MLP(input_shape, input_shape_view, input_shape_feature, args)
         # self.eval_rnn = MLP(input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
         # self.target_rnn = MLP(input_shape_view, input_shape_feature, args)
         self.eval_vdn_net = VDNNet()  # 把agentsQ值加起来的网络
@@ -156,9 +156,12 @@ class VDN:
                 self.eval_hidden = self.eval_hidden.cuda()
                 self.target_hidden = self.target_hidden.cuda()
             # print(inputs.shape)
-            q_eval, self.eval_hidden = self.eval_rnn(inputs,
-                                                     self.eval_hidden)  # 得到的q_eval维度为(episode_num*n_agents, n_actions)
-            q_target, self.target_hidden = self.target_rnn(inputs_next, self.target_hidden)
+            # q_eval, self.eval_hidden = self.eval_rnn(inputs,
+            #                                          self.eval_hidden)
+            # q_target, self.target_hidden = self.target_rnn(inputs_next, self.target_hidden)
+
+            q_eval = self.eval_rnn(inputs)
+            q_target = self.target_rnn(inputs_next)
 
             # 把q_eval维度重新变回(episode_num, n_agents, n_actions)
             q_eval = q_eval.view(episode_num, self.n_agents, -1)

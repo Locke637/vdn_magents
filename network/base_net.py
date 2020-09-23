@@ -95,6 +95,49 @@ class ConvNet_RNN(nn.Module):
         h = self.rnn(h, h_in)
         q = self.fc2(h)
         return q, h
+
+class ConvNet_MLP(nn.Module):
+
+    def __init__(self, input_shape, input_shape_view, input_shape_feature, args):
+        super(ConvNet_MLP, self).__init__()
+        self.args = args
+        self.input_shape_view = input_shape_view
+        self.input_shape_feature = input_shape_feature
+
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(10, 32, kernel_size=3, stride=1, padding=2),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+        )
+
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=2),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+        )
+
+        self.fc1 = nn.Linear(4032, args.rnn_hidden_dim)
+        self.fc2 = nn.Linear(args.rnn_hidden_dim+input_shape_feature, args.rnn_hidden_dim)
+        self.fc3 = nn.Linear(args.rnn_hidden_dim, args.n_actions)
+
+    def forward(self, obs):
+        view = obs[:, :self.input_shape_view]
+        # print(view.shape)
+        view = view.view(-1, 10, 10, 5)
+        feature = obs[:, -self.input_shape_feature:]
+
+        # x = f.relu(self.fc1(obs))
+        out = self.layer1(view)
+        out = self.layer2(out)
+        out = out.reshape(-1, 4032)
+        # print(out.size())
+        x = f.relu(self.fc1(out))
+        h = torch.cat((x, feature), dim=1)
+        # print(h.size())
+        # h_in = hidden_state.reshape(-1, self.args.rnn_hidden_dim + self.input_shape_feature)
+        h = f.relu(self.fc2(h))
+        q = self.fc3(h)
+        return q
     #
     # def __init__(self,, input_shape_view, input_shape_feature, args):
     #     super(ConvNet, self).__init__()
