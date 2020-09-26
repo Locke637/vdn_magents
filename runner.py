@@ -73,6 +73,7 @@ class Runner:
                 for train_step in range(self.args.train_steps):
                     mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
                     # print(mini_batch['terminated'])
+                    # print(train_steps)
                     self.agents.train(mini_batch, train_steps)
                     train_steps += 1
         # self.plt(num)

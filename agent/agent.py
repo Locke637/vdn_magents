@@ -9,6 +9,7 @@ from policy.qtran_alt import QtranAlt
 from policy.qtran_base import QtranBase
 from policy.maven import MAVEN
 from torch.distributions import Categorical
+from common.arguments import get_common_args, get_coma_args, get_mixer_args
 
 
 # Agent no communication
@@ -20,6 +21,24 @@ class Agents:
         self.obs_shape = args.obs_shape
         if args.alg == 'vdn':
             self.policy = VDN(args)
+            if args.use_fixed_model:
+                args_goal_a = get_common_args()
+                args_goal_a.load_model = True
+                args_goal_a = get_mixer_args(args_goal_a)
+                args_goal_a.learn = False
+                args_goal_a.epsilon = 0  # 1
+                args_goal_a.min_epsilon = 0
+                args_goal_a.map = 'battle'
+                args_goal_a.n_actions = args.n_actions
+                args_goal_a.episode_limit = args.episode_limit
+                args_goal_a.n_agents = args.n_agents
+                args_goal_a.state_shape = args.state_shape
+                args_goal_a.feature_shape = args.feature_shape
+                args_goal_a.view_shape = args.view_shape
+                args_goal_a.obs_shape = args.obs_shape
+                args_goal_a.real_view_shape = args.real_view_shape
+                self.fixed_policy = VDN(args_goal_a)
+
         elif args.alg == 'qmix':
             self.policy = QMIX(args)
         elif args.alg == 'coma':
@@ -81,6 +100,49 @@ class Agents:
                 action = torch.argmax(q_value)
         return action
 
+    def choose_fixed_action(self, obs, last_action, agent_num, avail_actions, epsilon, maven_z=None, evaluate=False):
+        epsilon = 0
+        inputs = obs.copy()
+        avail_actions_ind = np.nonzero(avail_actions)[0]  # index of actions which can be choose
+
+        # transform agent_num to onehot vector
+        agent_id = np.zeros(self.n_agents)
+        agent_id[agent_num] = 1.
+
+        if self.args.last_action:
+            inputs = np.hstack((inputs, last_action))
+        if self.args.reuse_network:
+            inputs = np.hstack((inputs, agent_id))
+        hidden_state = self.fixed_policy.eval_hidden[:, agent_num, :]
+
+        # transform the shape of inputs from (42,) to (1,42)
+        inputs = torch.tensor(inputs, dtype=torch.float32).unsqueeze(0)
+        avail_actions = torch.tensor(avail_actions, dtype=torch.float32).unsqueeze(0)
+        if self.args.cuda:
+            inputs = inputs.cuda()
+            hidden_state = hidden_state.cuda()
+
+        # get q value
+        if self.args.alg == 'maven':
+            maven_z = torch.tensor(maven_z, dtype=torch.float32).unsqueeze(0)
+            if self.args.cuda:
+                maven_z = maven_z.cuda()
+            q_value, self.fixed_policy.eval_hidden[:, agent_num, :] = self.fixed_policy.eval_rnn(inputs, hidden_state, maven_z)
+        else:
+            # q_value, self.fixed_policy.eval_hidden[:, agent_num, :] = self.fixed_policy.eval_rnn(inputs, hidden_state)
+            q_value = self.fixed_policy.eval_rnn(inputs)
+
+        # choose action from q value
+        if self.args.alg == 'coma' or self.args.alg == 'central_v' or self.args.alg == 'reinforce':
+            action = self._choose_action_from_softmax(q_value.cpu(), avail_actions, epsilon, evaluate)
+        else:
+            q_value[avail_actions == 0.0] = - float("inf")
+            if np.random.uniform() < epsilon:
+                action = np.random.choice(avail_actions_ind)  # action是一个整数
+            else:
+                action = torch.argmax(q_value)
+        return action
+
     def _choose_action_from_softmax(self, inputs, avail_actions, epsilon, evaluate=False):
         """
         :param inputs: # q_value of all actions
@@ -122,6 +184,7 @@ class Agents:
         for key in batch.keys():
             batch[key] = batch[key][:, :max_episode_len]
         self.policy.learn(batch, max_episode_len, train_step, epsilon)
+        # print(train_step, self.args.save_cycle)
         if train_step > 0 and train_step % self.args.save_cycle == 0:
             self.policy.save_model(train_step)
 

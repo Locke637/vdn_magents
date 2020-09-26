@@ -57,16 +57,21 @@ class RolloutWorker:
         while not terminated and step < self.episode_limit:
             # time.sleep(0.2)
             obs_all = self.env.get_observation(handles[0])
+            fixed_obs_all = self.env.get_observation(handles[1])
             view = obs_all[0]
             feature = obs_all[1]
+            fixed_view = fixed_obs_all[0]
+            fixed_feature = fixed_obs_all[1]
             obs = []
+            fixed_obs = []
             for j in range(self.n_agents):
                 # print(np.array(view[j]).shape)
                 obs.append(np.concatenate([view[j].flatten(), feature[j]]))
+                fixed_obs.append(np.concatenate([fixed_view[j].flatten(), fixed_feature[j]]))
                 state = feature[j]
             # obs = self.env.get_obs()
             # state = self.env.get_state()
-            actions, avail_actions, actions_onehot = [], [], []
+            actions, avail_actions, actions_onehot, fixed_actions = [], [], [], []
             for agent_id in range(self.n_agents):
                 # avail_action = self.env.get_avail_agent_actions(agent_id)
                 avail_action = np.ones(self.n_actions)
@@ -76,6 +81,15 @@ class RolloutWorker:
                 else:
                     action = self.agents.choose_action(obs[agent_id], last_action[agent_id], agent_id,
                                                        avail_action, epsilon, evaluate)
+                    if self.args.use_fixed_model:
+                        fixed_action = self.agents.choose_fixed_action(fixed_obs[agent_id], last_action[agent_id], agent_id,
+                                                           avail_action, epsilon, evaluate)
+                        if isinstance(fixed_action, np.int64):
+                            fixed_action = fixed_action.astype(np.int32)
+                        else:
+                            fixed_action = fixed_action.cpu()
+                            fixed_action = fixed_action.numpy().astype(np.int32)
+                        fixed_actions.append(fixed_action)
                 # generate onehot vector of th action
                 action_onehot = np.zeros(self.args.n_actions)
                 action_onehot[action] = 1
@@ -84,6 +98,7 @@ class RolloutWorker:
                 else:
                     action = action.cpu()
                     action = action.numpy().astype(np.int32)
+
                 actions.append(action)
                 actions_onehot.append(action_onehot)
                 avail_actions.append(avail_action)
@@ -93,7 +108,10 @@ class RolloutWorker:
             acts = [[], []]
             acts[0] = np.array(actions)
             # print(actions)
-            acts[1] = np.array(np.random.randint(0, self.n_actions, size=self.n_agents, dtype='int32'))
+            if self.args.use_fixed_model:
+                acts[1] = np.array(fixed_actions)
+            else:
+                acts[1] = np.array(np.random.randint(0, self.n_actions, size=self.n_agents, dtype='int32'))
             self.env.set_action(handles[0], acts[0])
             self.env.set_action(handles[1], acts[1])
             terminated = self.env.step()

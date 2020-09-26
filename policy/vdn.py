@@ -11,6 +11,7 @@ class VDN:
         self.state_shape = args.state_shape
         self.obs_shape = args.obs_shape
         input_shape = self.obs_shape
+        real_view_shape = args.real_view_shape
         input_shape_view = args.view_shape
         input_shape_feature = args.feature_shape
         # 根据参数决定RNN的输入维度
@@ -19,12 +20,13 @@ class VDN:
         if args.reuse_network:
             input_shape += self.n_agents
         self.feature_shape = args.feature_shape
+        load_num = 5
 
         # 神经网络
         # self.eval_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
         # self.target_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)
-        self.eval_rnn = ConvNet_MLP(input_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
-        self.target_rnn = ConvNet_MLP(input_shape, input_shape_view, input_shape_feature, args)
+        self.eval_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
+        self.target_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)
         # self.eval_rnn = MLP(input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
         # self.target_rnn = MLP(input_shape_view, input_shape_feature, args)
         self.eval_vdn_net = VDNNet()  # 把agentsQ值加起来的网络
@@ -39,9 +41,9 @@ class VDN:
         self.model_dir = args.model_dir + '/' + args.alg + '/' + args.map
         # 如果存在模型则加载模型
         if self.args.load_model:
-            if os.path.exists(self.model_dir + '/rnn_net_params.pkl'):
-                path_rnn = self.model_dir + '/rnn_net_params.pkl'
-                path_vdn = self.model_dir + '/vdn_net_params.pkl'
+            if os.path.exists(self.model_dir + '/' + str(load_num) + '_rnn_net_params.pkl'):
+                path_rnn = self.model_dir + '/' + str(load_num) + '_rnn_net_params.pkl'
+                path_vdn = self.model_dir + '/' + str(load_num) + '_vdn_net_params.pkl'
                 map_location = 'cuda:0' if self.args.cuda else 'cpu'
                 self.eval_rnn.load_state_dict(torch.load(path_rnn, map_location=map_location))
                 self.eval_vdn_net.load_state_dict(torch.load(path_vdn, map_location=map_location))
@@ -181,6 +183,7 @@ class VDN:
 
     def save_model(self, train_step):
         num = str(train_step // self.args.save_cycle)
+        print("save model")
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
         torch.save(self.eval_vdn_net.state_dict(), self.model_dir + '/' + num + '_vdn_net_params.pkl')
