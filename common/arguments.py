@@ -11,7 +11,7 @@ def get_common_args():
     # the environment setting
     parser.add_argument('--difficulty', type=str, default='7', help='the difficulty of the game')
     parser.add_argument('--game_version', type=str, default='latest', help='the version of the game')
-    parser.add_argument('--map', type=str, default='battle', help='the map of the game')
+    parser.add_argument('--map', type=str, default='battle_exp', help='the map of the game')
     parser.add_argument('--seed', type=int, default=123, help='random seed')
     parser.add_argument('--step_mul', type=int, default=1, help='how many steps to make an action')
     parser.add_argument('--replay_dir', type=str, default='', help='absolute path to save the replay')
@@ -84,8 +84,8 @@ def get_mixer_args(args):
 
     # epsilon greedy
     if args.load_model:
-        args.epsilon = 0.01  # 1
-        args.min_epsilon = 0.01
+        args.epsilon = 0.00  # 1
+        args.min_epsilon = 0.00
     else:
         args.epsilon = 1  # 1
         args.min_epsilon = 0.05
@@ -94,7 +94,7 @@ def get_mixer_args(args):
     args.epsilon_anneal_scale = 'step'
 
     # the number of the epoch to train the agent
-    args.n_epoch = 3500
+    args.n_epoch = 5000
 
     # the number of the episodes in one epoch
     args.n_episodes = 1
@@ -103,14 +103,14 @@ def get_mixer_args(args):
     args.train_steps = 1
 
     # # how often to evaluate
-    args.evaluate_cycle = 10
+    args.evaluate_cycle = 5
 
     # experience replay
     args.batch_size = 2
     args.buffer_size = int(2e2)
 
     # how often to save the model
-    args.save_cycle = 500
+    args.save_cycle = 5000
 
     # how often to update the target_net
     args.target_update_cycle = 200

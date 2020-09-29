@@ -118,7 +118,7 @@ class ConvNet_MLP(nn.Module):
             nn.ReLU(),
         )
 
-        self.fc1 = nn.Linear(192, args.rnn_hidden_dim)
+        self.fc1 = nn.Linear(864, args.rnn_hidden_dim)
         self.fc2 = nn.Linear(args.rnn_hidden_dim + input_shape_feature, args.rnn_hidden_dim)
         self.fc3 = nn.Linear(args.rnn_hidden_dim, args.n_actions)
 
@@ -132,7 +132,7 @@ class ConvNet_MLP(nn.Module):
         # x = f.relu(self.fc1(obs))
         out = self.layer1(view)
         out = self.layer2(out)
-        out = out.reshape(-1, 192)
+        out = out.reshape(-1, 864)
         # print(out.size())
         x = f.relu(self.fc1(out))
         h = torch.cat((x, feature), dim=1)

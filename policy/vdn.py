@@ -20,7 +20,7 @@ class VDN:
         if args.reuse_network:
             input_shape += self.n_agents
         self.feature_shape = args.feature_shape
-        load_num = 5
+        load_num = args.load_num
 
         # 神经网络
         # self.eval_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络

@@ -33,8 +33,11 @@ class RolloutWorker:
         win_tag = False
         step = 0
         episode_reward = 0  # cumulative rewards
+        fixed_rewards = 0
         last_action = np.zeros((self.args.n_agents, self.args.n_actions))
         self.agents.policy.init_hidden(1)
+        if self.args.use_fixed_model:
+            self.agents.fixed_policy.init_hidden(1)
 
         # epsilon
         epsilon = 0 if evaluate else self.epsilon
@@ -56,6 +59,14 @@ class RolloutWorker:
 
         while not terminated and step < self.episode_limit:
             # time.sleep(0.2)
+            num_agents = self.env.get_num(handles[0])
+            fixed_num_agents = self.env.get_num(handles[1])
+            if num_agents < self.n_agents:
+                self.env.add_agents(handles[0], method="random", n=self.n_agents - num_agents)
+            if fixed_num_agents < self.n_agents:
+                self.env.add_agents(handles[1], method="random", n=self.n_agents - fixed_num_agents)
+            num_agents = self.env.get_num(handles[0])
+
             obs_all = self.env.get_observation(handles[0])
             fixed_obs_all = self.env.get_observation(handles[1])
             view = obs_all[0]
@@ -65,7 +76,6 @@ class RolloutWorker:
             obs = []
             fixed_obs = []
             for j in range(self.n_agents):
-                # print(np.array(view[j]).shape)
                 obs.append(np.concatenate([view[j].flatten(), feature[j]]))
                 fixed_obs.append(np.concatenate([fixed_view[j].flatten(), fixed_feature[j]]))
                 state = feature[j]
@@ -115,8 +125,8 @@ class RolloutWorker:
             self.env.set_action(handles[0], acts[0])
             self.env.set_action(handles[1], acts[1])
             terminated = self.env.step()
-            temp_rewards = self.env.get_reward(handles[0])
-            reward = sum(temp_rewards)
+            reward = sum(self.env.get_reward(handles[0]))
+            fixed_reward = sum(self.env.get_reward(handles[1]))
             self.env.clear_dead()
             if step == self.episode_limit - 1:
                 terminated = 1.
@@ -131,6 +141,7 @@ class RolloutWorker:
             terminate.append([terminated])
             padded.append([0.])
             episode_reward += reward
+            fixed_rewards += fixed_reward
             step += 1
             if self.args.epsilon_anneal_scale == 'step':
                 epsilon = epsilon - self.anneal_epsilon if epsilon > self.min_epsilon else epsilon
@@ -187,7 +198,7 @@ class RolloutWorker:
         if evaluate and episode_num == self.args.evaluate_epoch - 1 and self.args.replay_dir != '':
             self.env.save_replay()
             self.env.close()
-        return episode, episode_reward, win_tag
+        return episode, episode_reward, win_tag, fixed_rewards
 
 
 # RolloutWorker for communication

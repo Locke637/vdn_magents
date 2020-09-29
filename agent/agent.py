@@ -37,6 +37,7 @@ class Agents:
                 args_goal_a.view_shape = args.view_shape
                 args_goal_a.obs_shape = args.obs_shape
                 args_goal_a.real_view_shape = args.real_view_shape
+                args_goal_a.load_num = args.load_num
                 self.fixed_policy = VDN(args_goal_a)
 
         elif args.alg == 'qmix':

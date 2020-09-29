@@ -32,6 +32,7 @@ class Runner:
     def run(self, num):
         train_steps = 0
         episode_rewards = 0
+        fixed_rewards = 0
         st = time.time()
         # print('Run {} start'.format(num))
         for epoch in range(self.args.n_epoch):
@@ -47,16 +48,19 @@ class Runner:
             episodes = []
             # 收集self.args.n_episodes个episodes
             for episode_idx in range(self.args.n_episodes):
-                episode, episode_reward, _ = self.rolloutWorker.generate_episode(episode_idx)
+                episode, episode_reward, _, fixed_reward = self.rolloutWorker.generate_episode(episode_idx)
                 episodes.append(episode)
                 episode_rewards += episode_reward
+                fixed_rewards += fixed_reward
                 if epoch % self.args.evaluate_cycle == 0:
                     t = time.time() - st
                     st = time.time()
+                    epr = round(episode_rewards / self.args.evaluate_cycle, 2)
+                    fr = round(fixed_rewards / self.args.evaluate_cycle, 2)
                     print(
-                        'train epoch {}, reward {}, time {}'.format(epoch, round(
-                            episode_rewards / self.args.evaluate_cycle, 2), t))
+                        'train epoch {}, reward {}, time {}'.format(epoch, [epr, fr], t))
                     episode_rewards = 0
+                    fixed_rewards = 0
                 # print(_)
             # episode的每一项都是一个(1, episode_len, n_agents, 具体维度)四维数组，下面要把所有episode的的obs拼在一起
             episode_batch = episodes[0]
