@@ -24,8 +24,8 @@ if __name__ == '__main__':
         #                     difficulty=args.difficulty,
         #                     game_version=args.game_version,
         #                     replay_dir=args.replay_dir)
-        env = magent.GridWorld("battle", map_size=30)
-        # env = magent.GridWorld("pursuit", map_size=30)
+        # env = magent.GridWorld("battle", map_size=30)
+        env = magent.GridWorld("pursuit", map_size=30)
         handles = env.get_handles()
         eval_obs = None
         feature_dim = env.get_feature_space(handles[0])
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         # env_info = env.get_env_info()
         # print(env.action_space[0][0])
         args.n_actions = env.action_space[0][0]
-        args.n_agents = 2
+        args.n_agents = 3
         args.state_shape = feature_dim[0]
         args.obs_shape = obs_shape[0]
         args.view_shape = v_dim_total
@@ -48,7 +48,7 @@ if __name__ == '__main__':
         args.feature_shape = feature_dim[0]
         args.real_view_shape = real_view_shape
         args.episode_limit = 350
-        args.use_fixed_model = True
+        args.use_fixed_model = False
         args.load_num = 9
         runner = Runner(env, args)
         if args.learn:
