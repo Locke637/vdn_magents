@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as f
 import torch
+import time
 
 
 class RNN(nn.Module):
@@ -123,6 +124,7 @@ class ConvNet_MLP(nn.Module):
         self.fc3 = nn.Linear(args.rnn_hidden_dim, args.n_actions)
 
     def forward(self, obs):
+        # st = time.time()
         # print(self.input_shape_view)
         view = obs[:, :self.input_shape_view]
         # print(view.shape)
@@ -140,6 +142,13 @@ class ConvNet_MLP(nn.Module):
         # h_in = hidden_state.reshape(-1, self.args.rnn_hidden_dim + self.input_shape_feature)
         h = f.relu(self.fc2(h))
         q = self.fc3(h)
+        # print(time.time() - st)
+
+        # h = torch.cat((x, feature), dim=1)
+        # # print(h.size())
+        # # h_in = hidden_state.reshape(-1, self.args.rnn_hidden_dim + self.input_shape_feature)
+        # h = f.relu(self.fc2(h))
+        # q = self.fc3(h)
         return q
     #
     # def __init__(self,, input_shape_view, input_shape_feature, args):
@@ -165,6 +174,241 @@ class ConvNet_MLP(nn.Module):
     #     out = out.reshape(out.size(0), -1)
     #     out = self.fc(out)
     #     return out
+
+
+class ConvNet_MLP_Ja(nn.Module):
+
+    def __init__(self, real_shape_view, input_shape_view, input_shape_feature, args):
+        super(ConvNet_MLP_Ja, self).__init__()
+        self.args = args
+        self.input_shape_view = input_shape_view
+        self.input_shape_feature = input_shape_feature
+        self.real_shape_view = real_shape_view
+        self.len_idact = args.id_dim + args.act_dim
+        self.input_len_idact = 1 + args.act_dim
+        # print(self.len_idact, args.id_dim, args.act_dim)
+        self.len_id = args.id_dim
+        self.len_act = args.act_dim
+        self.neighbor_actions_view = self.input_len_idact * args.n_agents
+        self.agents_num = args.n_agents
+
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(real_shape_view[0], 32, kernel_size=3, stride=1),
+            # nn.BatchNorm2d(32),
+            nn.ReLU(),
+        )
+
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(32, 32, kernel_size=3, stride=1),
+            # nn.BatchNorm2d(32),
+            nn.ReLU(),
+        )
+
+        self.fc1 = nn.Linear(192, args.rnn_hidden_dim)
+        # print(args.rnn_hidden_dim + input_shape_feature + self.len_idact)
+        self.fc2 = nn.Linear(args.rnn_hidden_dim + input_shape_feature + self.len_idact, args.rnn_hidden_dim)
+        self.fc3 = nn.Linear(args.rnn_hidden_dim, args.n_actions)
+
+    def forward(self, obs):
+        # st = time.time()
+        # print(obs[0].shape)
+        # q = torch.zeros(self.len_act)
+        tot_local_q = []
+        view = obs[:, :self.input_shape_view]
+        # print(view.shape)
+        view = view.view(-1, self.real_shape_view[0], self.real_shape_view[1], self.real_shape_view[2])
+        feature = obs[:, self.input_shape_view:self.input_shape_view + self.input_shape_feature]
+        neighbor_action = obs[:, -self.neighbor_actions_view:]
+        # feature_ja = []
+
+        # x = f.relu(self.fc1(obs))
+        out = self.layer1(view)
+        out = self.layer2(out)
+        out = out.reshape(-1, 192)
+        # print(out.size())
+        x = f.relu(self.fc1(out))
+        self_id = torch.zeros(self.len_id).cuda()
+        search_act = torch.eye(self.len_act).cuda()
+        all_id = torch.eye(self.len_id).cuda()
+        x_ja_all = []
+        tot_local_q = []
+        # st = time.time()
+        # t_t = time.time()
+        # print('tt', t_t - st)
+
+        for index in range(len(obs)):
+            # print(self.neighbor_actions_view)
+            # x_ja = torch.unsqueeze(x_ja, 1)
+            # print(act_index)
+            x_ja = []
+            for act_index in range(self.agents_num):
+                temp_idact = neighbor_action[index,
+                             act_index * self.input_len_idact:(act_index + 1) * self.input_len_idact]
+                temp_id = temp_idact[:1]
+                temp_act = temp_idact[-self.len_act:]
+                # print(temp_idact)
+                # print(temp_id)
+                # st1 = time.time()
+                # print(temp_id)
+                # print(temp_id, temp_id[0][0], temp_id[0][0] >= -1)
+                if temp_id[0] >= -1:
+                    # print('j', time.time() - st1)
+                    if temp_id[0] == -1:
+                        # st2 = time.time()
+                        # t_idact = torch.cat([t_id.cuda(), temp_act[index]], dim=0)
+                        # print(feature[index], t_idact)
+                        # feature_ja.append(torch.cat((feature[index], t_idact), dim=0))
+
+                        t_x = torch.cat((x[index], feature[index], self_id, temp_act), dim=0)
+                        t_x = torch.unsqueeze(t_x, 0)
+                        if isinstance(x_ja, list):
+                            x_ja = t_x
+                        else:
+                            x_ja = torch.cat([x_ja, t_x], dim=0)
+                        # print('p1', time.time() - st2)
+
+                        # print(feature_ja)
+                    else:
+                        # st3 = time.time()
+                        if not any(temp_act):
+                            # label = torch.tensor(range(self.len_act))
+                            # search_act = torch.zeros(self.len_act, self.len_act).scatter_(1, label, 1)
+                            # print(search_act)
+                            # t_feature = []
+                            for s_act in search_act:
+                                t_idact = torch.cat((all_id[temp_id[0].cpu().numpy()], s_act))
+                                # t_feature = torch.cat((feature[index], t_idact))
+                                t_x = torch.cat((x[index], feature[index], t_idact), dim=0)
+                                t_x = torch.unsqueeze(t_x, 0)
+                                if isinstance(x_ja, list):
+                                    x_ja = t_x
+                                else:
+                                    x_ja = torch.cat([x_ja, t_x], dim=0)
+                            # self.find_max_feature(x[index], t_feature)
+                        else:
+                            # t_idact = temp_idact[index]
+                            # print(all_id[temp_id], temp_id)
+                            t_idact = torch.cat((all_id[temp_id[0].cpu().numpy()], temp_act))
+                            # feature_ja.append(torch.cat((feature[index], t_idact), dim=0))
+                            t_x = torch.cat((x[index], feature[index], t_idact), dim=0)
+                            t_x = torch.unsqueeze(t_x, 0)
+                            if isinstance(x_ja, list):
+                                x_ja = t_x
+                            else:
+                                x_ja = torch.cat([x_ja, t_x], dim=0)
+                        # print('p2', time.time() - st3)
+                # else:
+                #     # gt = time.time()
+                #     # print('gt', gt - st1)
+                #     pass
+
+                # print('now', time.time() - st1)
+                # print(x_ja_all, x_ja)
+            # if isinstance(x_ja_all, list):
+            #     x_ja_all = x_ja
+            # else:
+            #     if not isinstance(x_ja, list):
+            #         x_ja_all = torch.cat([x_ja_all, x_ja], dim=0)
+
+            h = f.relu(self.fc2(x_ja))
+            q = self.fc3(h)
+            q = torch.sum(q, dim=0).unsqueeze(0)
+            # print(q.size())
+            if isinstance(tot_local_q, list):
+                tot_local_q = q
+            else:
+                tot_local_q = torch.cat([tot_local_q, q], dim=0)
+
+            # h = torch.cat((x, feature), dim=1)
+            # print(x_ja.size())
+            # x_ja_tensor = torch.tensor(x_ja)
+            # x_ja = torch.tensor(x_ja.cuda())
+        # nc_t = time.time()
+        # print('nc:', nc_t - st)
+        # print(x_ja_all.size())
+
+        # print(q.size())
+        # if isinstance(tot_local_q, list):
+        #     tot_local_q = q
+        # else:
+        #     tot_local_q = torch.cat([tot_local_q, q], dim=0)
+
+        # ft = time.time()
+        # print('ft', ft - t_t)
+        # print(q)
+        # print(tot_local_q)
+        # print(tot_local_q)
+
+        # print(q)
+        # print(tot_local_q)
+        return tot_local_q
+
+    # def find_max_feature(self, x, t_feature):
+    #     q = []
+    #     for f in t_feature:
+    #         h = torch.cat((x, f), dim=1)
+    #         h = f.relu(self.fc2(h))
+    #         q.append(self.fc3(h))
+    #     return torch.argmax(q)
+
+
+class ConvNet_MLP_Ja_v2(nn.Module):
+
+    def __init__(self, real_shape_view, input_shape_view, input_shape_feature, args):
+        super(ConvNet_MLP_Ja_v2, self).__init__()
+        self.args = args
+        self.input_shape_view = input_shape_view
+        self.input_shape_feature = input_shape_feature
+        self.real_shape_view = real_shape_view
+        self.len_idact = args.id_dim + args.act_dim
+        self.input_len_idact = args.id_dim + args.act_dim
+        # print(self.len_idact, args.id_dim, args.act_dim)
+        self.len_id = args.id_dim
+        self.len_act = args.act_dim
+        self.neighbor_actions_view = self.input_len_idact * args.n_agents
+        self.agents_num = args.n_agents
+
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(real_shape_view[0], 32, kernel_size=3, stride=1),
+            # nn.BatchNorm2d(32),
+            nn.ReLU(),
+        )
+
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(32, 32, kernel_size=3, stride=1),
+            # nn.BatchNorm2d(32),
+            nn.ReLU(),
+        )
+
+        self.fc1 = nn.Linear(192, args.rnn_hidden_dim)
+        # print(args.rnn_hidden_dim + input_shape_feature + self.len_idact)
+        self.fc2 = nn.Linear(args.rnn_hidden_dim + input_shape_feature + self.neighbor_actions_view,
+                             args.rnn_hidden_dim)
+        self.fc3 = nn.Linear(args.rnn_hidden_dim, args.n_actions)
+
+    def forward(self, obs):
+        view = obs[:, :self.input_shape_view]
+        view = view.view(-1, self.real_shape_view[0], self.real_shape_view[1], self.real_shape_view[2])
+        feature_w_neighbor_action = obs[:, self.input_shape_view:]
+        # feature = obs[:, self.input_shape_view:self.input_shape_view + self.input_shape_feature]
+        # neighbor_action = obs[:, -self.neighbor_actions_view:]
+
+        out = self.layer1(view)
+        out = self.layer2(out)
+        out = out.reshape(-1, 192)
+        x = f.relu(self.fc1(out))
+        h = torch.cat((x, feature_w_neighbor_action), dim=1)
+        h = f.relu(self.fc2(h))
+        q = self.fc3(h)
+        return q
+
+    # def find_max_feature(self, x, t_feature):
+    #     q = []
+    #     for f in t_feature:
+    #         h = torch.cat((x, f), dim=1)
+    #         h = f.relu(self.fc2(h))
+    #         q.append(self.fc3(h))
+    #     return torch.argmax(q)
 
 
 class Net(nn.Module):

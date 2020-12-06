@@ -10,6 +10,7 @@ from policy.qtran_base import QtranBase
 from policy.maven import MAVEN
 from torch.distributions import Categorical
 from common.arguments import get_common_args, get_coma_args, get_mixer_args
+import time
 
 
 # Agent no communication
@@ -101,6 +102,53 @@ class Agents:
                 action = torch.argmax(q_value)
         return action
 
+    def choose_action_ja(self, obs, neighbor_actions, last_action, agent_num, avail_actions, epsilon, maven_z=None,
+                         evaluate=False):
+        inputs = obs.copy()
+        avail_actions_ind = np.nonzero(avail_actions)[0]  # index of actions which can be choose
+
+        # transform agent_num to onehot vector
+        agent_id = np.zeros(self.n_agents)
+        agent_id[agent_num] = 1.
+
+        if self.args.last_action:
+            inputs = np.hstack((inputs, last_action))
+        if self.args.reuse_network:
+            inputs = np.hstack((inputs, agent_id))
+        inputs = np.hstack((inputs, neighbor_actions))
+        # print(inputs.shape)
+        hidden_state = self.policy.eval_hidden[:, agent_num, :]
+
+        # transform the shape of inputs from (42,) to (1,42)
+        inputs = torch.tensor(inputs, dtype=torch.float32).unsqueeze(0)
+        avail_actions = torch.tensor(avail_actions, dtype=torch.float32).unsqueeze(0)
+        if self.args.cuda:
+            inputs = inputs.cuda()
+            hidden_state = hidden_state.cuda()
+
+        # get q value
+        if self.args.alg == 'maven':
+            maven_z = torch.tensor(maven_z, dtype=torch.float32).unsqueeze(0)
+            if self.args.cuda:
+                maven_z = maven_z.cuda()
+            q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state, maven_z)
+        else:
+            # q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state)
+            # st = time.time()
+            q_value = self.policy.eval_rnn(inputs)
+            # print(time.time()-st)
+
+        # choose action from q value
+        if self.args.alg == 'coma' or self.args.alg == 'central_v' or self.args.alg == 'reinforce':
+            action = self._choose_action_from_softmax(q_value.cpu(), avail_actions, epsilon, evaluate)
+        else:
+            q_value[avail_actions == 0.0] = - float("inf")
+            if np.random.uniform() < epsilon:
+                action = np.random.choice(avail_actions_ind)  # action是一个整数
+            else:
+                action = torch.argmax(q_value)
+        return action
+
     def choose_fixed_action(self, obs, last_action, agent_num, avail_actions, epsilon, maven_z=None, evaluate=False):
         epsilon = 0
         inputs = obs.copy()
@@ -128,7 +176,8 @@ class Agents:
             maven_z = torch.tensor(maven_z, dtype=torch.float32).unsqueeze(0)
             if self.args.cuda:
                 maven_z = maven_z.cuda()
-            q_value, self.fixed_policy.eval_hidden[:, agent_num, :] = self.fixed_policy.eval_rnn(inputs, hidden_state, maven_z)
+            q_value, self.fixed_policy.eval_hidden[:, agent_num, :] = self.fixed_policy.eval_rnn(inputs, hidden_state,
+                                                                                                 maven_z)
         else:
             # q_value, self.fixed_policy.eval_hidden[:, agent_num, :] = self.fixed_policy.eval_rnn(inputs, hidden_state)
             q_value = self.fixed_policy.eval_rnn(inputs)
@@ -148,7 +197,8 @@ class Agents:
         """
         :param inputs: # q_value of all actions
         """
-        action_num = avail_actions.sum(dim=1, keepdim=True).float().repeat(1, avail_actions.shape[-1])  # num of avail_actions
+        action_num = avail_actions.sum(dim=1, keepdim=True).float().repeat(1, avail_actions.shape[
+            -1])  # num of avail_actions
         # 先将Actor网络的输出通过softmax转换成概率分布
         prob = torch.nn.functional.softmax(inputs, dim=-1)
         # add noise of epsilon
@@ -270,13 +320,3 @@ class CommAgents:
         self.policy.learn(batch, max_episode_len, train_step, epsilon)
         if train_step > 0 and train_step % self.args.save_cycle == 0:
             self.policy.save_model(train_step)
-
-
-
-
-
-
-
-
-
-

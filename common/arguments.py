@@ -80,7 +80,7 @@ def get_mixer_args(args):
     args.two_hyper_layers = False
     args.hyper_hidden_dim = 64
     args.qtran_hidden_dim = 64
-    args.lr = 1e-4
+    args.lr = 3e-4
 
     # epsilon greedy
     if args.load_model:
@@ -103,11 +103,11 @@ def get_mixer_args(args):
     args.train_steps = 1
 
     # # how often to evaluate
-    args.evaluate_cycle = 5
+    args.evaluate_cycle = 1
 
     # experience replay
     args.batch_size = 2
-    args.buffer_size = int(2e2)
+    args.buffer_size = int(1e2)
 
     # how often to save the model
     args.save_cycle = 5000

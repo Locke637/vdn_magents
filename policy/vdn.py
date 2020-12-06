@@ -1,6 +1,6 @@
 import torch
 import os
-from network.base_net import RNN, MLP, ConvNet_RNN, ConvNet_MLP
+from network.base_net import RNN, MLP, ConvNet_RNN, ConvNet_MLP, ConvNet_MLP_Ja
 from network.vdn_net import VDNNet
 
 
@@ -10,6 +10,7 @@ class VDN:
         self.n_agents = args.n_agents
         self.state_shape = args.state_shape
         self.obs_shape = args.obs_shape
+        self.args = args
         input_shape = self.obs_shape
         real_view_shape = args.real_view_shape
         input_shape_view = args.view_shape
@@ -25,13 +26,17 @@ class VDN:
         # 神经网络
         # self.eval_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
         # self.target_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)
-        self.eval_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
-        self.target_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)
+        if self.args.use_ja:
+            self.eval_rnn = ConvNet_MLP_Ja(real_view_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
+            self.target_rnn = ConvNet_MLP_Ja(real_view_shape, input_shape_view, input_shape_feature, args)
+        else:
+            self.eval_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
+            self.target_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)
         # self.eval_rnn = MLP(input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
         # self.target_rnn = MLP(input_shape_view, input_shape_feature, args)
         self.eval_vdn_net = VDNNet()  # 把agentsQ值加起来的网络
         self.target_vdn_net = VDNNet()
-        self.args = args
+
         if self.args.cuda:
             self.eval_rnn.cuda()
             self.target_rnn.cuda()
@@ -162,6 +167,7 @@ class VDN:
             #                                          self.eval_hidden)
             # q_target, self.target_hidden = self.target_rnn(inputs_next, self.target_hidden)
 
+            # print(inputs.size())
             q_eval = self.eval_rnn(inputs)
             q_target = self.target_rnn(inputs_next)
 

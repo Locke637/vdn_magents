@@ -48,7 +48,10 @@ class Runner:
             episodes = []
             # 收集self.args.n_episodes个episodes
             for episode_idx in range(self.args.n_episodes):
-                episode, episode_reward, _, fixed_reward = self.rolloutWorker.generate_episode(episode_idx)
+                if self.args.use_ja:
+                    episode, episode_reward, _, fixed_reward = self.rolloutWorker.generate_episode_ja(episode_idx)
+                else:
+                    episode, episode_reward, _, fixed_reward = self.rolloutWorker.generate_episode(episode_idx)
                 episodes.append(episode)
                 episode_rewards += episode_reward
                 fixed_rewards += fixed_reward
