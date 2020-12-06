@@ -521,34 +521,36 @@ class RolloutWorker:
             for agent_id in range(self.n_agents):
                 # avail_action = self.env.get_avail_agent_actions(agent_id)
                 neighbor_clean_actions = []
+                need_search_neighbor = []
                 for act_index in range(self.n_agents):
                     if act_index < agent_id:
-                        # agent_id_one_hot = np.zeros(self.n_agents)
-                        # agent_id_one_hot[act_index] = 1
                         if act_index in neighbor_dic[agent_id]:
-                            agent_id_one_hot = [act_index]
+                            # agent_id_one_hot = [act_index]
+                            agent_id_one_hot = np.zeros(self.n_agents)
+                            agent_id_one_hot[act_index] = 1
                             neighbor_clean_actions = np.concatenate(
                                 (neighbor_clean_actions, agent_id_one_hot, actions_onehot[act_index]), axis=0)
                         else:
-                            # agent_id_one_hot = np.zeros(self.n_agents)
-                            agent_id_one_hot = [-2]
+                            agent_id_one_hot = np.zeros(self.n_agents)
+                            # agent_id_one_hot = [-2]
                             neighbor_clean_actions = np.concatenate(
                                 (neighbor_clean_actions, agent_id_one_hot, np.zeros(self.n_actions)), axis=0)
                     elif act_index == agent_id:
-                        # agent_id_one_hot = np.ones(self.n_agents)
-                        agent_id_one_hot = [-1]
+                        agent_id_one_hot = np.zeros(self.n_agents)
+                        # agent_id_one_hot = [-1]
                         neighbor_clean_actions = np.concatenate(
                             (neighbor_clean_actions, agent_id_one_hot, np.zeros(self.n_actions)), axis=0)
                     else:
                         if act_index in neighbor_dic[agent_id]:
-                            # agent_id_one_hot = np.zeros(self.n_agents)
-                            # agent_id_one_hot[act_index] = 1
-                            agent_id_one_hot = [act_index]
+                            agent_id_one_hot = np.zeros(self.n_agents)
+                            agent_id_one_hot[act_index] = 1
+                            # agent_id_one_hot = [act_index]
                             neighbor_clean_actions = np.concatenate(
                                 (neighbor_clean_actions, agent_id_one_hot, np.zeros(self.n_actions)), axis=0)
+                            need_search_neighbor.append(act_index)
                         else:
-                            # agent_id_one_hot = np.zeros(self.n_agents)
-                            agent_id_one_hot = [-2]
+                            agent_id_one_hot = np.zeros(self.n_agents)
+                            # agent_id_one_hot = [-2]
                             neighbor_clean_actions = np.concatenate(
                                 (neighbor_clean_actions, agent_id_one_hot, np.zeros(self.n_actions)), axis=0)
                         # agent_id_one_hot = np.zeros(self.n_agents)
@@ -564,9 +566,9 @@ class RolloutWorker:
                     # print(neighbor_clean_actions)
                     # print(obs[0].shape)
                     # st = time.time()
-                    action = self.agents.choose_action_ja(obs[agent_id], neighbor_clean_actions, last_action[agent_id],
-                                                          agent_id,
-                                                          avail_action, epsilon, evaluate)
+                    action = self.agents.choose_action_ja_v2(obs[agent_id], neighbor_clean_actions,
+                                                             need_search_neighbor, last_action[agent_id], agent_id,
+                                                             avail_action, epsilon, evaluate)
                     # print(time.time() - st)
                     if self.args.use_fixed_model:
                         fixed_action = self.agents.choose_fixed_action(fixed_obs[agent_id], last_action[agent_id],
@@ -615,17 +617,16 @@ class RolloutWorker:
                 real_ja = []
                 for act_index in range(self.n_agents):
                     if act_index == agent_id:
-                        # agent_id_one_hot = np.ones(self.n_agents)
-                        agent_id_one_hot = [-1]
+                        agent_id_one_hot = np.zeros(self.n_agents)
+                        # agent_id_one_hot = [-1]
                         real_ja = np.concatenate((real_ja, agent_id_one_hot, np.zeros(self.n_actions)), axis=0)
                     else:
-                        # agent_id_one_hot = np.zeros(self.n_agents)
-                        # agent_id_one_hot[act_index] = 1
                         if act_index in neighbor_dic[agent_id]:
-                            agent_id_one_hot = [act_index]
+                            agent_id_one_hot = np.zeros(self.n_agents)
+                            agent_id_one_hot[act_index] = 1
                             real_ja = np.concatenate((real_ja, agent_id_one_hot, actions_onehot[act_index]), axis=0)
                         else:
-                            agent_id_one_hot = [-2]
+                            agent_id_one_hot = np.zeros(self.n_agents)
                             # agent_id_one_hot = np.zeros(self.n_agents)
                             real_ja = np.concatenate((real_ja, agent_id_one_hot, np.zeros(self.n_actions)), axis=0)
                 obs[agent_id] = np.concatenate((obs[agent_id], real_ja), axis=0)

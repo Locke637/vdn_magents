@@ -402,14 +402,6 @@ class ConvNet_MLP_Ja_v2(nn.Module):
         q = self.fc3(h)
         return q
 
-    # def find_max_feature(self, x, t_feature):
-    #     q = []
-    #     for f in t_feature:
-    #         h = torch.cat((x, f), dim=1)
-    #         h = f.relu(self.fc2(h))
-    #         q.append(self.fc3(h))
-    #     return torch.argmax(q)
-
 
 class Net(nn.Module):
     def __init__(self):

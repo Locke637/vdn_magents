@@ -1,6 +1,6 @@
 import torch
 import os
-from network.base_net import RNN, MLP, ConvNet_RNN, ConvNet_MLP, ConvNet_MLP_Ja
+from network.base_net import RNN, MLP, ConvNet_RNN, ConvNet_MLP, ConvNet_MLP_Ja, ConvNet_MLP_Ja_v2
 from network.vdn_net import VDNNet
 
 
@@ -27,8 +27,8 @@ class VDN:
         # self.eval_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
         # self.target_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)
         if self.args.use_ja:
-            self.eval_rnn = ConvNet_MLP_Ja(real_view_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
-            self.target_rnn = ConvNet_MLP_Ja(real_view_shape, input_shape_view, input_shape_feature, args)
+            self.eval_rnn = ConvNet_MLP_Ja_v2(real_view_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
+            self.target_rnn = ConvNet_MLP_Ja_v2(real_view_shape, input_shape_view, input_shape_feature, args)
         else:
             self.eval_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
             self.target_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)

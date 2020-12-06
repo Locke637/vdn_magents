@@ -20,6 +20,9 @@ class Agents:
         self.n_agents = args.n_agents
         self.state_shape = args.state_shape
         self.obs_shape = args.obs_shape
+        self.idact_shape = args.id_len + args.n_actions
+        self.search_actions = np.eye(args.n_actions)
+        self.search_ids = np.zeros(self.n_agents)
         if args.alg == 'vdn':
             self.policy = VDN(args)
             if args.use_fixed_model:
@@ -147,6 +150,51 @@ class Agents:
                 action = np.random.choice(avail_actions_ind)  # action是一个整数
             else:
                 action = torch.argmax(q_value)
+        return action
+
+    def choose_action_ja_v2(self, obs, neighbor_actions, need_search_agent, last_action, agent_num, avail_actions,
+                            epsilon, maven_z=None,
+                            evaluate=False):
+        inputs = obs.copy()
+        avail_actions_ind = np.nonzero(avail_actions)[0]  # index of actions which can be choose
+
+        # transform agent_num to onehot vector
+        agent_id = np.zeros(self.n_agents)
+        agent_id[agent_num] = 1.
+
+        if self.args.last_action:
+            inputs = np.hstack((inputs, last_action))
+        if self.args.reuse_network:
+            inputs = np.hstack((inputs, agent_id))
+
+        if need_search_agent:
+            q_tot = np.zeros(self.n_actions)
+            for search_id in need_search_agent:
+                agent_id_one_hot = self.search_ids.copy()
+                agent_id_one_hot[search_id] = 1
+                for i in range(self.n_actions):
+                    search_act = self.search_actions[i]
+                    search_idact = np.concatenate([agent_id_one_hot, search_act], axis=0)
+                    neighbor_actions[search_id * self.idact_shape:(search_id + 1) * self.idact_shape] = search_idact
+                    inputs = np.hstack((inputs, neighbor_actions))
+                    inputs = torch.tensor(inputs, dtype=torch.float32).unsqueeze(0)
+                    if self.args.cuda:
+                        inputs = inputs.cuda()
+                    q_value = self.policy.eval_rnn(inputs)
+                    max_q_index = torch.argmax(q_value)
+                    q_tot[max_q_index] += q_value[max_q_index]
+        else:
+            inputs = np.hstack((inputs, neighbor_actions))
+            inputs = torch.tensor(inputs, dtype=torch.float32).unsqueeze(0)
+            if self.args.cuda:
+                inputs = inputs.cuda()
+            q_value = self.policy.eval_rnn(inputs)
+            q_tot = q_value
+
+        if np.random.uniform() < epsilon:
+            action = np.random.choice(avail_actions_ind)  # action是一个整数
+        else:
+            action = torch.argmax(q_tot)
         return action
 
     def choose_fixed_action(self, obs, last_action, agent_num, avail_actions, epsilon, maven_z=None, evaluate=False):
