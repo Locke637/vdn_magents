@@ -25,7 +25,10 @@ if __name__ == '__main__':
         #                     game_version=args.game_version,
         #                     replay_dir=args.replay_dir)
         # env = magent.GridWorld("battle", map_size=30)
-        env = magent.GridWorld("pursuit", map_size=240)
+        args.map_size = 300
+        args.env_name = 'pursuit'
+        args.map = 'ucjab'
+        env = magent.GridWorld(args.env_name, map_size=args.map_size)
         handles = env.get_handles()
         eval_obs = None
         feature_dim = env.get_feature_space(handles[0])
@@ -39,11 +42,18 @@ if __name__ == '__main__':
         # print(env.action_space[0][0])
         args.n_actions = env.action_space[0][0]
         args.n_agents = 8
+        args.use_v1 = False
+        if args.use_v1:
+            args.nei_n_agents = args.n_agents
+            args.id_dim = args.n_agents
+        else:
+            args.nei_n_agents = args.n_agents
+            args.id_dim = 2
         args.state_shape = feature_dim[0]
         # args.obs_shape = obs_shape[0]
         args.view_shape = v_dim_total
         args.act_dim = env.action_space[0][0]
-        args.id_dim = args.n_agents
+        # args.id_dim = 2
         # print(args.view_shape)
         # print(obs_shape[0])
         args.feature_shape = feature_dim[0]
@@ -53,7 +63,7 @@ if __name__ == '__main__':
         args.load_num = 9
         args.use_ja = True
         if args.use_ja:
-            args.obs_shape = obs_shape[0] + args.n_agents * (args.id_dim + args.act_dim)
+            args.obs_shape = obs_shape[0] + args.nei_n_agents * (args.id_dim + args.act_dim)
         else:
             args.obs_shape = obs_shape[0]
         runner = Runner(env, args)

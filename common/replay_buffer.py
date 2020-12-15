@@ -25,7 +25,8 @@ class ReplayBuffer:
                         'avail_u_next': np.empty([self.size, self.episode_limit, self.n_agents, self.n_actions]),
                         'u_onehot': np.empty([self.size, self.episode_limit, self.n_agents, self.n_actions]),
                         'padded': np.empty([self.size, self.episode_limit, 1]),
-                        'terminated': np.empty([self.size, self.episode_limit, 1])
+                        'terminated': np.empty([self.size, self.episode_limit, 1]),
+                        'neighbor_ids': np.empty([self.size, self.episode_limit, self.n_agents, self.n_agents])
                         }
         if self.args.alg == 'maven':
             self.buffers['z'] = np.empty([self.size, self.args.noise_dim])
@@ -49,6 +50,7 @@ class ReplayBuffer:
             self.buffers['u_onehot'][idxs] = episode_batch['u_onehot']
             self.buffers['padded'][idxs] = episode_batch['padded']
             self.buffers['terminated'][idxs] = episode_batch['terminated']
+            self.buffers['neighbor_ids'][idxs] = episode_batch['neighbor_ids']
             if self.args.alg == 'maven':
                 self.buffers['z'][idxs] = episode_batch['z']
 

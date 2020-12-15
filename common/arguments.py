@@ -21,7 +21,7 @@ def get_common_args():
     parser.add_argument('--alg', type=str, default='vdn', help='the algorithm to train the agent')
     parser.add_argument('--last_action', type=bool, default=False,
                         help='whether to use the last action to choose action')
-    parser.add_argument('--reuse_network', type=bool, default=True, help='whether to use one network for all agents')
+    parser.add_argument('--reuse_network', type=bool, default=False, help='whether to use one network for all agents')
     parser.add_argument('--gamma', type=float, default=0.99, help='discount factor')
     parser.add_argument('--optimizer', type=str, default="RMS", help='optimizer')
     parser.add_argument('--evaluate_epoch', type=int, default=20, help='number of the epoch to evaluate the agent')
@@ -103,7 +103,7 @@ def get_mixer_args(args):
     args.train_steps = 1
 
     # # how often to evaluate
-    args.evaluate_cycle = 1
+    args.evaluate_cycle = 5
 
     # experience replay
     args.batch_size = 2

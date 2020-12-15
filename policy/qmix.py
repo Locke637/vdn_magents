@@ -1,6 +1,6 @@
 import torch
 import os
-from network.base_net import RNN
+from network.base_net import RNN, MLP, ConvNet_RNN, ConvNet_MLP, ConvNet_MLP_Ja, ConvNet_MLP_Ja_v2
 from network.qmix_net import QMixNet
 
 
@@ -11,6 +11,9 @@ class QMIX:
         self.state_shape = args.state_shape
         self.obs_shape = args.obs_shape
         input_shape = self.obs_shape
+        real_view_shape = args.real_view_shape
+        input_shape_view = args.view_shape
+        input_shape_feature = args.feature_shape
         # 根据参数决定RNN的输入维度
         if args.last_action:
             input_shape += self.n_actions
@@ -18,8 +21,10 @@ class QMIX:
             input_shape += self.n_agents
 
         # 神经网络
-        self.eval_rnn = RNN(input_shape, args)  # 每个agent选动作的网络
-        self.target_rnn = RNN(input_shape, args)
+        # self.eval_rnn = RNN(input_shape, args)  # 每个agent选动作的网络
+        # self.target_rnn = RNN(input_shape, args)
+        self.eval_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
+        self.target_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)
         self.eval_qmix_net = QMixNet(args)  # 把agentsQ值加起来的网络
         self.target_qmix_net = QMixNet(args)
         self.args = args

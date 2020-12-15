@@ -11,6 +11,7 @@ class VDN:
         self.state_shape = args.state_shape
         self.obs_shape = args.obs_shape
         self.args = args
+        self.alpha_dq_loss = 0.001
         input_shape = self.obs_shape
         real_view_shape = args.real_view_shape
         input_shape_view = args.view_shape
@@ -27,7 +28,8 @@ class VDN:
         # self.eval_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
         # self.target_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)
         if self.args.use_ja:
-            self.eval_rnn = ConvNet_MLP_Ja_v2(real_view_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
+            self.eval_rnn = ConvNet_MLP_Ja_v2(real_view_shape, input_shape_view, input_shape_feature,
+                                              args)  # 每个agent选动作的网络
             self.target_rnn = ConvNet_MLP_Ja_v2(real_view_shape, input_shape_view, input_shape_feature, args)
         else:
             self.eval_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
@@ -85,8 +87,9 @@ class VDN:
             else:
                 batch[key] = torch.tensor(batch[key], dtype=torch.float32)
         # TODO pymarl中取得经验没有取最后一条，找出原因
-        u, r, avail_u, avail_u_next, terminated = batch['u'], batch['r'], batch['avail_u'], \
-                                                  batch['avail_u_next'], batch['terminated']
+        u, r, avail_u, avail_u_next, terminated, n_ids = batch['u'], batch['r'], batch['avail_u'], \
+                                                         batch['avail_u_next'], batch['terminated'], batch[
+                                                             'neighbor_ids']
         mask = 1 - batch["padded"].float()  # 用来把那些填充的经验的TD-error置0，从而不让它们影响到学习
         if self.args.cuda:
             u = u.cuda()
@@ -98,6 +101,16 @@ class VDN:
 
         # 取每个agent动作对应的Q值，并且把最后不需要的一维去掉，因为最后一维只有一个值了
         q_evals = torch.gather(q_evals, dim=3, index=u).squeeze(3)
+
+        # add delta q loss
+        tot_delta_q = torch.tensor(0.0).cuda()
+        d_q_evals = q_evals.view(-1, self.n_agents)
+        n_ids = n_ids.view(-1, self.n_agents, self.n_agents)
+        for k in range(max_episode_len):
+            t_dq = n_ids[k, :, :].cuda() * d_q_evals[k, :]
+            for delta_q in t_dq:
+                tot_delta_q += torch.abs(delta_q.sum())
+        tot_delta_q = tot_delta_q / max_episode_len
 
         # 得到target_q
         q_targets[avail_u_next == 0.0] = - 9999999
@@ -114,6 +127,8 @@ class VDN:
         # loss = masked_td_error.pow(2).mean()
         # 不能直接用mean，因为还有许多经验是没用的，所以要求和再比真实的经验数，才是真正的均值
         loss = (masked_td_error ** 2).sum() / mask.sum()
+        if self.args.use_v1:
+            loss += tot_delta_q * self.alpha_dq_loss
         # print('Loss is ', loss)
         self.optimizer.zero_grad()
         loss.backward()

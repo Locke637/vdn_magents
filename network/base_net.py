@@ -360,12 +360,12 @@ class ConvNet_MLP_Ja_v2(nn.Module):
         self.input_shape_view = input_shape_view
         self.input_shape_feature = input_shape_feature
         self.real_shape_view = real_shape_view
-        self.len_idact = args.id_dim + args.act_dim
+        # self.len_idact = args.id_dim + args.act_dim
         self.input_len_idact = args.id_dim + args.act_dim
         # print(self.len_idact, args.id_dim, args.act_dim)
         self.len_id = args.id_dim
         self.len_act = args.act_dim
-        self.neighbor_actions_view = self.input_len_idact * args.n_agents
+        self.neighbor_actions_view = self.input_len_idact * args.nei_n_agents
         self.agents_num = args.n_agents
 
         self.layer1 = nn.Sequential(
@@ -381,7 +381,7 @@ class ConvNet_MLP_Ja_v2(nn.Module):
         )
 
         self.fc1 = nn.Linear(192, args.rnn_hidden_dim)
-        # print(args.rnn_hidden_dim + input_shape_feature + self.len_idact)
+        # print(args.rnn_hidden_dim + input_shape_feature + self.neighbor_actions_view)
         self.fc2 = nn.Linear(args.rnn_hidden_dim + input_shape_feature + self.neighbor_actions_view,
                              args.rnn_hidden_dim)
         self.fc3 = nn.Linear(args.rnn_hidden_dim, args.n_actions)
@@ -390,6 +390,7 @@ class ConvNet_MLP_Ja_v2(nn.Module):
         view = obs[:, :self.input_shape_view]
         view = view.view(-1, self.real_shape_view[0], self.real_shape_view[1], self.real_shape_view[2])
         feature_w_neighbor_action = obs[:, self.input_shape_view:]
+        # print(feature_w_neighbor_action.size())
         # feature = obs[:, self.input_shape_view:self.input_shape_view + self.input_shape_feature]
         # neighbor_action = obs[:, -self.neighbor_actions_view:]
 
@@ -398,6 +399,7 @@ class ConvNet_MLP_Ja_v2(nn.Module):
         out = out.reshape(-1, 192)
         x = f.relu(self.fc1(out))
         h = torch.cat((x, feature_w_neighbor_action), dim=1)
+        # print(h.size())
         h = f.relu(self.fc2(h))
         q = self.fc3(h)
         return q
