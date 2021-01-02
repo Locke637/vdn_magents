@@ -61,14 +61,12 @@ class RolloutWorker:
             maven_z = list(maven_z.cpu())
 
         while not terminated and step < self.episode_limit:
-            # time.sleep(0.2)
             num_agents = self.env.get_num(handles[0])
             fixed_num_agents = self.env.get_num(handles[1])
             if num_agents < self.n_agents:
                 self.env.add_agents(handles[0], method="random", n=self.n_agents - num_agents)
             if fixed_num_agents < self.n_agents:
                 self.env.add_agents(handles[1], method="random", n=self.n_agents - fixed_num_agents)
-            num_agents = self.env.get_num(handles[0])
 
             obs_all = self.env.get_observation(handles[0])
             fixed_obs_all = self.env.get_observation(handles[1])
@@ -78,11 +76,12 @@ class RolloutWorker:
             fixed_feature = fixed_obs_all[1]
             obs = []
             fixed_obs = []
+            state = self.env.get_global_minimap(3, 3).flatten()
 
             for j in range(self.n_agents):
                 obs.append(np.concatenate([view[j].flatten(), feature[j]]))
                 fixed_obs.append(np.concatenate([fixed_view[j].flatten(), fixed_feature[j]]))
-                state = feature[j]
+                # state = feature[j]
             # obs = self.env.get_obs()
             # state = self.env.get_state()
             actions, avail_actions, actions_onehot, fixed_actions = [], [], [], []
@@ -632,13 +631,16 @@ class RolloutWorker:
                             real_ja = np.concatenate((real_ja, agent_id_one_hot, np.zeros(self.n_actions)), axis=0)
                 obs[agent_id] = np.concatenate((obs[agent_id], real_ja), axis=0)
 
-            neighbor_ids = np.zeros([self.n_agents, self.n_agents])
-            for i in range(self.n_agents):
-                id_list = neighbor_dic[i]
-                if id_list:
-                    for id_temp in id_list:
-                        neighbor_ids[i][id_temp] = 1
-                    neighbor_ids[i][i] = -1
+            if self.args.use_dqloss:
+                neighbor_ids = np.zeros([self.n_agents, self.n_agents])
+                for i in range(self.n_agents):
+                    id_list = neighbor_dic[i]
+                    id_list_len = len(id_list)
+                    if id_list:
+                        for id_temp in id_list:
+                            neighbor_ids[i][id_temp] = 1
+                        neighbor_ids[i][i] = -id_list_len
+                n_id.append(neighbor_ids)
 
             o.append(obs)
             s.append(state)
@@ -648,7 +650,6 @@ class RolloutWorker:
             r.append([reward])
             terminate.append([terminated])
             padded.append([0.])
-            n_id.append(neighbor_ids)
             episode_reward += reward
             fixed_rewards += fixed_reward
             step += 1
@@ -685,7 +686,8 @@ class RolloutWorker:
             avail_u_next.append(np.zeros((self.n_agents, self.n_actions)))
             padded.append([1.])
             terminate.append([1.])
-            n_id.append(np.zeros((self.n_agents, self.n_agents)))
+            if self.args.use_dqloss:
+                n_id.append(np.zeros((self.n_agents, self.n_agents)))
 
         episode = dict(o=o.copy(),
                        s=s.copy(),
@@ -697,9 +699,11 @@ class RolloutWorker:
                        avail_u_next=avail_u_next.copy(),
                        u_onehot=u_onehot.copy(),
                        padded=padded.copy(),
-                       terminated=terminate.copy(),
-                       neighbor_ids=n_id.copy()
+                       terminated=terminate.copy()
+                       # neighbor_ids=n_id.copy()
                        )
+        if self.args.use_dqloss:
+            episode['neighbor_ids'] = n_id.copy()
         # add episode dim
         for key in episode.keys():
             episode[key] = np.array([episode[key]])
@@ -750,6 +754,9 @@ class RolloutWorker:
             maven_z = list(maven_z.cpu())
 
         while not terminated and step < self.episode_limit:
+            max_q_infer_actions = {}
+            tot_delta_max_q = 0
+            need_search_neighbor_dic = {}
             num_agents = self.env.get_num(handles[0])
             fixed_num_agents = self.env.get_num(handles[1])
             if num_agents < self.n_agents:
@@ -760,7 +767,6 @@ class RolloutWorker:
             obs_all = self.env.get_observation(handles[0])
             pos = self.env.get_pos(handles[0])
             neighbor_dic, neighbor_pos = find_neighbor_pos(pos)
-
             fixed_obs_all = self.env.get_observation(handles[1])
             view = obs_all[0]
             feature = obs_all[1]
@@ -768,41 +774,41 @@ class RolloutWorker:
             fixed_feature = fixed_obs_all[1]
             obs = []
             fixed_obs = []
-
             for j in range(self.n_agents):
                 obs.append(np.concatenate([view[j].flatten(), feature[j]]))
                 fixed_obs.append(np.concatenate([fixed_view[j].flatten(), fixed_feature[j]]))
                 state = feature[j]
-            actions, avail_actions, actions_onehot, fixed_actions, n_id = [], [], [], [], []
+
+            actions, avail_actions, actions_onehot, fixed_actions, n_id, real_ja_all = [], [], [], [], [], []
             for agent_id in range(self.n_agents):
-                neighbor_clean_actions = []
+                neighbor_clean_actions = {}
                 need_search_neighbor = []
                 for act_index in range(self.n_agents):
                     if act_index < agent_id:
                         if act_index in neighbor_dic[agent_id]:
                             agent_pos_index = neighbor_dic[agent_id].index(act_index)
                             agent_pos = neighbor_pos[agent_id][agent_pos_index]
-                            neighbor_clean_actions = np.concatenate(
-                                (neighbor_clean_actions, agent_pos, actions_onehot[act_index]), axis=0)
-                        else:
-                            agent_pos = np.zeros(2)
-                            neighbor_clean_actions = np.concatenate(
-                                (neighbor_clean_actions, agent_pos, np.zeros(self.n_actions)), axis=0)
-                    elif act_index == agent_id:
-                        agent_pos = np.zeros(2)
-                        neighbor_clean_actions = np.concatenate(
-                            (neighbor_clean_actions, agent_pos, np.zeros(self.n_actions)), axis=0)
+                            neighbor_clean_actions[act_index] = np.concatenate((agent_pos, actions_onehot[act_index]),
+                                                                               axis=0)
+                        # else:
+                        #     agent_pos = np.zeros(2)
+                        #     neighbor_clean_actions = np.concatenate(
+                        #         (neighbor_clean_actions, agent_pos, np.zeros(self.n_actions)), axis=0)
+                    # elif act_index == agent_id:
+                    #     agent_pos = np.zeros(2)
+                    #     neighbor_clean_actions = np.concatenate(
+                    #         (neighbor_clean_actions, agent_pos, np.zeros(self.n_actions)), axis=0)
                     else:
                         if act_index in neighbor_dic[agent_id]:
                             agent_pos_index = neighbor_dic[agent_id].index(act_index)
                             agent_pos = neighbor_pos[agent_id][agent_pos_index]
-                            neighbor_clean_actions = np.concatenate(
-                                (neighbor_clean_actions, agent_pos, np.zeros(self.n_actions)), axis=0)
+                            neighbor_clean_actions[act_index] = np.concatenate((agent_pos, np.zeros(self.n_actions)),
+                                                                               axis=0)
                             need_search_neighbor.append(act_index)
-                        else:
-                            agent_pos = np.zeros(2)
-                            neighbor_clean_actions = np.concatenate(
-                                (neighbor_clean_actions, agent_pos, np.zeros(self.n_actions)), axis=0)
+                        # else:
+                        #     agent_pos = np.zeros(2)
+                        #     neighbor_clean_actions = np.concatenate(
+                        #         (neighbor_clean_actions, agent_pos, np.zeros(self.n_actions)), axis=0)
 
                 # print(neighbor_dic)
                 # print(neighbor_pos)
@@ -813,10 +819,11 @@ class RolloutWorker:
                     action = self.agents.choose_action_ja(obs[agent_id], last_action[agent_id], agent_id,
                                                           avail_action, epsilon, maven_z, evaluate)
                 else:
-                    action = self.agents.choose_action_ja_v3(obs[agent_id], neighbor_clean_actions,
-                                                             neighbor_pos[agent_id],
-                                                             need_search_neighbor, last_action[agent_id], agent_id,
-                                                             avail_action, epsilon, evaluate)
+                    action, delta_max_q = self.agents.choose_action_ja_vd(obs[agent_id], neighbor_clean_actions,
+                                                                          neighbor_pos[agent_id],
+                                                                          need_search_neighbor,
+                                                                          last_action[agent_id], agent_id,
+                                                                          avail_action, epsilon, evaluate)
                     if self.args.use_fixed_model:
                         fixed_action = self.agents.choose_fixed_action(fixed_obs[agent_id], last_action[agent_id],
                                                                        agent_id,
@@ -840,6 +847,22 @@ class RolloutWorker:
                 actions_onehot.append(action_onehot)
                 avail_actions.append(avail_action)
                 last_action[agent_id] = action_onehot
+                # max_q_infer_actions[agent_id] = max_q_index_dic
+                tot_delta_max_q += delta_max_q
+                need_search_neighbor_dic[agent_id] = need_search_neighbor
+
+            # count = 0
+            # tot_len = sum([len(need_search_neighbor_dic[k]) for k in range(self.n_agents)])
+            # if tot_len:
+            #     for test_i in range(self.n_agents):
+            #         if max_q_infer_actions[test_i]:
+            #             for test_id in need_search_neighbor_dic[test_i]:
+            #                 infer_act = max_q_infer_actions[test_i][test_id]
+            #                 true_act = actions[test_id]
+            #                 if infer_act == true_act:
+            #                     count += 1
+            #     infer_rate += count
+            #     infer_step += 1
 
             acts = [[], []]
             acts[0] = np.array(actions)
@@ -867,7 +890,9 @@ class RolloutWorker:
                     else:
                         agent_pos = np.zeros(2)
                         real_ja = np.concatenate((real_ja, agent_pos, np.zeros(self.n_actions)), axis=0)
-                obs[agent_id] = np.concatenate((obs[agent_id], real_ja), axis=0)
+                real_ja_all.append(real_ja)
+                # obs[agent_id] = np.concatenate((obs[agent_id], real_ja), axis=0)
+
             o.append(obs)
             s.append(state)
             u.append(np.reshape(actions, [self.n_agents, 1]))
@@ -876,7 +901,18 @@ class RolloutWorker:
             r.append([reward])
             terminate.append([terminated])
             padded.append([0.])
-            n_id.append(np.zeros((self.n_agents, self.n_agents)))
+            # if self.args.use_dqloss:
+            #     n_id.append(np.zeros((self.n_agents, self.n_agents)))
+            if self.args.use_ja:
+                neighbor_ids = np.zeros([self.n_agents, self.n_agents])
+                for i in range(self.n_agents):
+                    id_list = neighbor_dic[i]
+                    id_list_len = len(id_list)
+                    if id_list:
+                        for id_temp in id_list:
+                            neighbor_ids[i][id_temp] = 1
+                        neighbor_ids[i][i] = -id_list_len
+                n_id.append(neighbor_ids)
             episode_reward += reward
             fixed_rewards += fixed_reward
             step += 1
@@ -912,7 +948,9 @@ class RolloutWorker:
             avail_u_next.append(np.zeros((self.n_agents, self.n_actions)))
             padded.append([1.])
             terminate.append([1.])
-            n_id.append(np.zeros((self.n_agents, self.n_agents)))
+            if self.args.use_ja:
+                n_id.append(np.zeros((self.n_agents, self.n_agents)))
+                real_ja_all.append(np.zeros((self.n_agents, self.n_agents * (self.args.id_dim + self.args.n_actions))))
 
         episode = dict(o=o.copy(),
                        s=s.copy(),
@@ -924,9 +962,12 @@ class RolloutWorker:
                        avail_u_next=avail_u_next.copy(),
                        u_onehot=u_onehot.copy(),
                        padded=padded.copy(),
-                       terminated=terminate.copy(),
-                       neighbor_ids=n_id.copy()
+                       terminated=terminate.copy()
+                       # neighbor_ids=n_id.copy()
                        )
+        if self.args.use_ja:
+            episode['neighbor_ids'] = n_id.copy()
+            episode['neighbor_idacts'] = real_ja_all.copy()
         # add episode dim
         for key in episode.keys():
             episode[key] = np.array([episode[key]])
@@ -937,6 +978,11 @@ class RolloutWorker:
         if evaluate and episode_num == self.args.evaluate_epoch - 1 and self.args.replay_dir != '':
             self.env.save_replay()
             self.env.close()
+        # if infer_step:
+        #     win_tag = infer_rate / infer_step
+        # else:
+        #     win_tag = 0
+        win_tag = tot_delta_max_q
         return episode, episode_reward, win_tag, fixed_rewards
 
 

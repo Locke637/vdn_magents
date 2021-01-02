@@ -152,8 +152,10 @@ class QMIX:
                 inputs_next = inputs_next.cuda()
                 self.eval_hidden = self.eval_hidden.cuda()
                 self.target_hidden = self.target_hidden.cuda()
-            q_eval, self.eval_hidden = self.eval_rnn(inputs, self.eval_hidden)  # inputs维度为(40,96)，得到的q_eval维度为(40,n_actions)
-            q_target, self.target_hidden = self.target_rnn(inputs_next, self.target_hidden)
+            # q_eval, self.eval_hidden = self.eval_rnn(inputs, self.eval_hidden)
+            # q_target, self.target_hidden = self.target_rnn(inputs_next, self.target_hidden)
+            q_eval = self.eval_rnn(inputs)
+            q_target = self.target_rnn(inputs_next)
 
             # 把q_eval维度重新变回(8, 5,n_actions)
             q_eval = q_eval.view(episode_num, self.n_agents, -1)

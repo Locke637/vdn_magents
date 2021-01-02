@@ -9,7 +9,7 @@ import wandb
 import pickle
 
 
-wandb.init(project="gmadqn")
+# wandb.init(project="gmadqn")
 
 class Runner:
     def __init__(self, env, args):
@@ -32,7 +32,8 @@ class Runner:
         self.save_path = self.args.result_dir + '/' + args.map + '/'
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
-        self.file_name = self.save_path + str(args.env_name) + '_' + str(args.n_agents) + '_' + str(args.map_size)
+        self.file_name = self.save_path + str(args.env_name) + '_' + str(args.n_agents) + '_' + str(
+            args.map_size) + '_' + args.name_time
 
     def run(self, num):
         train_steps = 0
@@ -56,13 +57,13 @@ class Runner:
             for episode_idx in range(self.args.n_episodes):
                 if self.args.use_ja:
                     if self.args.use_v1:
-                        episode, episode_reward, _, fixed_reward = self.rolloutWorker.generate_episode_ja_v2(
+                        episode, episode_reward, rate, fixed_reward = self.rolloutWorker.generate_episode_ja_v2(
                             episode_idx)
                     else:
-                        episode, episode_reward, _, fixed_reward = self.rolloutWorker.generate_episode_ja_v3(
+                        episode, episode_reward, rate, fixed_reward = self.rolloutWorker.generate_episode_ja_v3(
                             episode_idx)
                 else:
-                    episode, episode_reward, _, fixed_reward = self.rolloutWorker.generate_episode(episode_idx)
+                    episode, episode_reward, rate, fixed_reward = self.rolloutWorker.generate_episode(episode_idx)
                 episodes.append(episode)
                 episode_rewards += episode_reward
                 fixed_rewards += fixed_reward
@@ -72,13 +73,12 @@ class Runner:
                     st = time.time()
                     epr = round(episode_rewards / self.args.evaluate_cycle, 2)
                     fr = round(fixed_rewards / self.args.evaluate_cycle, 2)
-                    print('train epoch {}, reward {}, time {}'.format(epoch, [epr, fr], t))
-                    wandb.log({"reward": epr, "test_reward": epr})
+                    print('train epoch {}, reward {}, time {}, rate {}'.format(epoch, [epr, fr], t, rate))
+                    # wandb.log({"reward": epr, "test_reward": epr})
                     episode_rewards = 0
                     fixed_rewards = 0
                     with open(self.file_name, 'wb') as fp:
                         pickle.dump(plot_rewards, fp)
-                # print(_)
             # episode的每一项都是一个(1, episode_len, n_agents, 具体维度)四维数组，下面要把所有episode的的obs拼在一起
             episode_batch = episodes[0]
             episodes.pop(0)

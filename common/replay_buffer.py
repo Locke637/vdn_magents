@@ -25,15 +25,23 @@ class ReplayBuffer:
                         'avail_u_next': np.empty([self.size, self.episode_limit, self.n_agents, self.n_actions]),
                         'u_onehot': np.empty([self.size, self.episode_limit, self.n_agents, self.n_actions]),
                         'padded': np.empty([self.size, self.episode_limit, 1]),
-                        'terminated': np.empty([self.size, self.episode_limit, 1]),
-                        'neighbor_ids': np.empty([self.size, self.episode_limit, self.n_agents, self.n_agents])
+                        'terminated': np.empty([self.size, self.episode_limit, 1])
+                        # 'neighbor_ids': np.empty([self.size, self.episode_limit, self.n_agents, self.n_agents])
                         }
+        if self.args.use_ja:
+            self.buffers['neighbor_idacts'] = np.empty(
+                [self.size, self.episode_limit, self.n_agents,
+                 self.n_agents * (self.args.id_dim + self.args.n_actions)])
+            self.buffers['neighbor_ids'] = np.empty([self.size, self.episode_limit, self.n_agents, self.n_agents])
+        # if self.args.use_dqloss:
+        #     self.buffers['neighbor_ids'] = np.empty([self.size, self.episode_limit, self.n_agents, self.n_agents])
         if self.args.alg == 'maven':
             self.buffers['z'] = np.empty([self.size, self.args.noise_dim])
         # thread lock
         self.lock = threading.Lock()
 
         # store the episode
+
     def store_episode(self, episode_batch):
         batch_size = episode_batch['o'].shape[0]  # episode_number
         with self.lock:
@@ -50,7 +58,11 @@ class ReplayBuffer:
             self.buffers['u_onehot'][idxs] = episode_batch['u_onehot']
             self.buffers['padded'][idxs] = episode_batch['padded']
             self.buffers['terminated'][idxs] = episode_batch['terminated']
-            self.buffers['neighbor_ids'][idxs] = episode_batch['neighbor_ids']
+            if self.args.use_ja:
+                self.buffers['neighbor_idacts'][idxs] = episode_batch['neighbor_idacts']
+                self.buffers['neighbor_ids'][idxs] = episode_batch['neighbor_ids']
+            # if self.args.use_dqloss:
+            #     self.buffers['neighbor_ids'][idxs] = episode_batch['neighbor_ids']
             if self.args.alg == 'maven':
                 self.buffers['z'][idxs] = episode_batch['z']
 

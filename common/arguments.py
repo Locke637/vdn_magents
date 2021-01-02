@@ -30,6 +30,7 @@ def get_common_args():
     parser.add_argument('--load_model', type=bool, default=False, help='whether to load the pretrained model')
     parser.add_argument('--learn', type=bool, default=True, help='whether to train the model')
     parser.add_argument('--cuda', type=bool, default=True, help='whether to use the GPU')
+    parser.add_argument('--name_time', type=str, default='0', help='name time')
     args = parser.parse_args()
     return args
 
@@ -72,10 +73,11 @@ def get_coma_args(args):
     return args
 
 
-# arguments of vnd、 qmix、 qtran
+# arguments of vdn、 qmix、 qtran
 def get_mixer_args(args):
     # network
     args.rnn_hidden_dim = 256
+    args.mlp_hidden_dim = [256, 256]
     args.qmix_hidden_dim = 128
     args.two_hyper_layers = False
     args.hyper_hidden_dim = 64
@@ -106,7 +108,7 @@ def get_mixer_args(args):
     args.evaluate_cycle = 5
 
     # experience replay
-    args.batch_size = 2
+    args.batch_size = 1
     args.buffer_size = int(1e2)
 
     # how often to save the model

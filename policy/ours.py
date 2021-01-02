@@ -2,9 +2,10 @@ import torch
 import os
 from network.base_net import RNN, MLP, ConvNet_RNN, ConvNet_MLP, ConvNet_MLP_Ja, ConvNet_MLP_Ja_v2
 from network.vdn_net import VDNNet
+import numpy as np
 
 
-class VDN:
+class OURS:
     def __init__(self, args):
         self.n_actions = args.n_actions
         self.n_agents = args.n_agents
@@ -69,7 +70,7 @@ class VDN:
         # 学习过程中，要为每个episode的每个agent都维护一个eval_hidden、target_hidden
         self.eval_hidden = None
         self.target_hidden = None
-        print('Init alg VDN')
+        print('Init alg Ours')
 
     def learn(self, batch, max_episode_len, train_step, epsilon=None):  # train_step表示是第几次学习，用来控制更新target_net网络的参数
         '''
@@ -142,65 +143,148 @@ class VDN:
             self.target_rnn.load_state_dict(self.eval_rnn.state_dict())
             self.target_vdn_net.load_state_dict(self.eval_vdn_net.state_dict())
 
+    def _get_neighbor_actids_inputs(self, neighbor_ids, neighbor_idact, obs):
+        obs_with_idact = []
+        zeros_tensor = torch.zeros(self.args.idact_dim)
+        for index_id in range(self.n_agents):
+            return_obs = []
+            n_id = []
+            tmp_n_id = neighbor_ids[0][index_id]
+            tmp_n_idact = neighbor_idact[0][index_id]
+            for i, num in enumerate(tmp_n_id):
+                if num == 1:
+                    n_id.append(i)
+            single_obs = obs[0][index_id]
+            if not n_id:
+                return_obs = torch.cat([single_obs, zeros_tensor]).unsqueeze(0)
+            else:
+                for real_id in n_id:
+                    single_idact = tmp_n_idact[real_id * self.args.idact_dim:(1 + real_id) * self.args.idact_dim]
+                    return_obs.append(torch.cat([single_obs, single_idact]))
+                return_obs = torch.stack(return_obs)
+            obs_with_idact.append(return_obs)
+        return obs_with_idact
+
     def _get_inputs(self, batch, transition_idx):
         # 取出所有episode上该transition_idx的经验，u_onehot要取出所有，因为要用到上一条
         obs, obs_next, u_onehot = batch['o'][:, transition_idx], \
                                   batch['o_next'][:, transition_idx], batch['u_onehot'][:]
-        # neighbor_idact = batch['neighbor_idacts'][:, transition_idx]
-        episode_num = obs.shape[0]
-        inputs, inputs_next, input_neighbor_idact = [], [], []
-        inputs.append(obs)
-        inputs_next.append(obs_next)
+        neighbor_idact, neighbor_ids = batch['neighbor_idacts'][:, transition_idx], batch['neighbor_ids'][:,
+                                                                                    transition_idx]
+        max_transition_idx = min(len(batch['neighbor_idacts'][0]) - 1, transition_idx + 1)
+        next_neighbor_idact, next_neighbor_ids = batch['neighbor_idacts'][:, max_transition_idx], batch['neighbor_ids'][
+                                                                                                  :,
+                                                                                                  max_transition_idx]
+        obs_with_idact = self._get_neighbor_actids_inputs(neighbor_ids, neighbor_idact, obs)
+        next_obs_with_idact = self._get_neighbor_actids_inputs(next_neighbor_ids, next_neighbor_idact, obs_next)
+
+        # episode_num = obs.shape[0]
+        # inputs, inputs_next, input_neighbor_idact, input_neighbor_ids = [], [], [], []
+        # input_next_neighbor_idact, input_next_neighbor_ids = [], []
+
+        # inputs.append(obs_with_idact)
+        # inputs_next.append(next_obs_with_idact)
+        # inputs.append(obs)
+        # inputs_next.append(obs_next)
         # input_neighbor_idact.append(neighbor_idact)
+        # input_neighbor_ids.append(neighbor_ids)
+        # input_next_neighbor_idact.append(next_neighbor_idact)
+        # input_next_neighbor_ids.append(next_neighbor_ids)
 
         # 给obs添加上一个动作、agent编号
-        if self.args.last_action:
-            if transition_idx == 0:  # 如果是第一条经验，就让前一个动作为0向量
-                inputs.append(torch.zeros_like(u_onehot[:, transition_idx]))
-            else:
-                inputs.append(u_onehot[:, transition_idx - 1])
-            inputs_next.append(u_onehot[:, transition_idx])
-        if self.args.reuse_network:
-            # 因为当前的obs三维的数据，每一维分别代表(episode，agent，obs维度)，直接在dim_1上添加对应的向量
-            # 即可，比如给agent_0后面加(1, 0, 0, 0, 0)，表示5个agent中的0号。而agent_0的数据正好在第0行，那么需要加的
-            # agent编号恰好就是一个单位矩阵，即对角线为1，其余为0
-            inputs.append(torch.eye(self.args.n_agents).unsqueeze(0).expand(episode_num, -1, -1))
-            inputs_next.append(torch.eye(self.args.n_agents).unsqueeze(0).expand(episode_num, -1, -1))
-        # 要把obs中的三个拼起来，并且要把episode_num个episode、self.args.n_agents个agent的数据拼成episode_num*n_agents条数据
-        # 因为这里所有agent共享一个神经网络，每条数据中带上了自己的编号，所以还是自己的数据
-        inputs = torch.cat([x.reshape(episode_num * self.args.n_agents, -1) for x in inputs], dim=1)
-        inputs_next = torch.cat([x.reshape(episode_num * self.args.n_agents, -1) for x in inputs_next], dim=1)
+        # if self.args.last_action:
+        #     if transition_idx == 0:  # 如果是第一条经验，就让前一个动作为0向量
+        #         inputs.append(torch.zeros_like(u_onehot[:, transition_idx]))
+        #     else:
+        #         inputs.append(u_onehot[:, transition_idx - 1])
+        #     inputs_next.append(u_onehot[:, transition_idx])
+        # if self.args.reuse_network:
+        #     # 因为当前的obs三维的数据，每一维分别代表(episode，agent，obs维度)，直接在dim_1上添加对应的向量
+        #     # 即可，比如给agent_0后面加(1, 0, 0, 0, 0)，表示5个agent中的0号。而agent_0的数据正好在第0行，那么需要加的
+        #     # agent编号恰好就是一个单位矩阵，即对角线为1，其余为0
+        #     inputs.append(torch.eye(self.args.n_agents).unsqueeze(0).expand(episode_num, -1, -1))
+        #     inputs_next.append(torch.eye(self.args.n_agents).unsqueeze(0).expand(episode_num, -1, -1))
+        # # 要把obs中的三个拼起来，并且要把episode_num个episode、self.args.n_agents个agent的数据拼成episode_num*n_agents条数据
+        # # 因为这里所有agent共享一个神经网络，每条数据中带上了自己的编号，所以还是自己的数据
+        # inputs = torch.cat([x.reshape(episode_num * self.args.n_agents, -1) for x in inputs], dim=1)
+        # inputs_next = torch.cat([x.reshape(episode_num * self.args.n_agents, -1) for x in inputs_next], dim=1)
         # input_neighbor_idact = torch.cat(
         #     [x.reshape(episode_num * self.args.n_agents, -1) for x in input_neighbor_idact], dim=1)
-        return inputs, inputs_next
+        # input_neighbor_ids = torch.cat(
+        #     [x.reshape(episode_num * self.args.n_agents, -1) for x in input_neighbor_ids], dim=1)
+        # input_next_neighbor_idact = torch.cat(
+        #     [x.reshape(episode_num * self.args.n_agents, -1) for x in input_next_neighbor_idact], dim=1)
+        # input_next_neighbor_ids = torch.cat(
+        #     [x.reshape(episode_num * self.args.n_agents, -1) for x in input_next_neighbor_ids], dim=1)
+        # return inputs, inputs_next, input_neighbor_idact, input_neighbor_ids, input_next_neighbor_idact, input_next_neighbor_ids
+        return obs_with_idact, next_obs_with_idact
 
     def get_q_values(self, batch, max_episode_len):
+        # calculate nagents times each input contains nagents input [obs_idact0...ons_idactx]
         episode_num = batch['o'].shape[0]
         q_evals, q_targets = [], []
+        # zeros_idact = torch.zeros(self.args.n_actions + self.args.id_dim)
         for transition_idx in range(max_episode_len):
-            inputs, inputs_next = self._get_inputs(batch, transition_idx)  # 给obs加last_action、agent_id
-            if self.args.cuda:
-                inputs = inputs.cuda()
-                inputs_next = inputs_next.cuda()
-                self.eval_hidden = self.eval_hidden.cuda()
-                self.target_hidden = self.target_hidden.cuda()
+            # tmp_q_eval = torch.zeros(self.n_actions).cuda()
+            # tmp_q_target = torch.zeros(self.n_actions).cuda()
+            q_eval, q_target = [], []
+            inputs, inputs_next = self._get_inputs(batch, transition_idx)
+
+            # input_zero = torch.cat([inputs, zeros_idact]).cuda()
+            # temp_q_eval = self.eval_rnn(input_zero)
+            # q_eval += temp_q_eval
+            # for index in input_neighbor_ids:
+            #     input_obs_idact = torch.cat(
+            #         [inputs, input_neighbor_idact[index * self.args.idact_dim:(index + 1) * self.args.idact_dim]])
+            #     input_obs_idact = input_obs_idact.cuda()
+            #     temp_q_eval = self.eval_rnn(input_obs_idact)
+            #     q_eval += temp_q_eval
+            #
+            # input_next_zero = torch.cat([inputs_next, zeros_idact]).cuda()
+            # temp_next_q_eval = self.target_rnn(input_next_zero)
+            # q_target += temp_next_q_eval
+            # for index in input_next_neighbor_ids:
+            #     input_next_obs_idact = torch.cat(
+            #         [inputs_next,
+            #          input_next_neighbor_idact[index * self.args.idact_dim:(index + 1) * self.args.idact_dim]])
+            #     input_next_obs_idact = input_next_obs_idact.cuda()
+            #     temp_next_q_eval = self.target_rnn(input_next_obs_idact)
+            #     q_target += temp_next_q_eval
+
+            # next_input_obs_idact = np.concatenate(
+            #     [inputs_next,
+            #      input_next_neighbor_idact[index * self.args.idact_dim:(index + 1) * self.args.idact_dim]])
+
+            # if self.args.cuda:
+            #     inputs = inputs.cuda()
+            #     inputs_next = inputs_next.cuda()
+            #     input_neighbor_idact = input_neighbor_idact.cuda()
+            # self.eval_hidden = self.eval_hidden.cuda()
+            # self.target_hidden = self.target_hidden.cuda()
             # print(inputs.shape)
             # q_eval, self.eval_hidden = self.eval_rnn(inputs,
             #                                          self.eval_hidden)
             # q_target, self.target_hidden = self.target_rnn(inputs_next, self.target_hidden)
 
-            # print(inputs.size())
-            # print(self.obs_shape, self.n_agents * (self.n_actions + 2))
-            q_eval = self.eval_rnn(inputs)
-            q_target = self.target_rnn(inputs_next)
+            # print(len(inputs))
+            # q_eval = self.eval_rnn(inputs)
+            # q_target = self.target_rnn(inputs_next)
+            for id in range(self.n_agents):
+                single_input = inputs[id].cuda()
+                single_input_next = inputs_next[id].cuda()
+                q_eval.append(self.eval_rnn(single_input))
+                q_target.append(self.target_rnn(single_input_next))
 
             # 把q_eval维度重新变回(episode_num, n_agents, n_actions)
+            q_eval = torch.stack(q_eval)
+            q_target = torch.stack(q_target)
+            # print(q_eval.size())
             q_eval = q_eval.view(episode_num, self.n_agents, -1)
             q_target = q_target.view(episode_num, self.n_agents, -1)
             q_evals.append(q_eval)
             q_targets.append(q_target)
-        # 得的q_eval和q_target是一个列表，列表里装着max_episode_len个数组，数组的的维度是(episode个数, n_agents，n_actions)
-        # 把该列表转化成(episode个数, max_episode_len， n_agents，n_actions)的数组
+            # 得的q_eval和q_target是一个列表，列表里装着max_episode_len个数组，数组的的维度是(episode个数, n_agents，n_actions)
+            # 把该列表转化成(episode个数, max_episode_len， n_agents，n_actions)的数组
         q_evals = torch.stack(q_evals, dim=1)
         q_targets = torch.stack(q_targets, dim=1)
         return q_evals, q_targets
