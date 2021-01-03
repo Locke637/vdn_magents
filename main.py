@@ -14,7 +14,7 @@ def get_config(map_size):
         "predator",
         {
             'width': 2, 'length': 2, 'hp': 1, 'speed': 1,
-            'view_range': gw.CircleRange(5), 'attack_range': gw.CircleRange(2),
+            'view_range': gw.CircleRange(10), 'attack_range': gw.CircleRange(2),
             'attack_penalty': -0.2
         })
 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         #                     game_version=args.game_version,
         #                     replay_dir=args.replay_dir)
         # env = magent.GridWorld("battle", map_size=30)
-        args.map_size = 270
+        args.map_size = 25
         args.env_name = 'pursuit'
         args.map = args.alg
         args.name_time = '7'

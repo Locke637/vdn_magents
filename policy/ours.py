@@ -272,8 +272,10 @@ class OURS:
             for id in range(self.n_agents):
                 single_input = inputs[id].cuda()
                 single_input_next = inputs_next[id].cuda()
-                q_eval.append(self.eval_rnn(single_input))
-                q_target.append(self.target_rnn(single_input_next))
+                # print(single_input.size())
+                # print(self.eval_rnn(single_input).size())
+                q_eval.append(torch.sum(self.eval_rnn(single_input), 0))
+                q_target.append(torch.sum(self.target_rnn(single_input_next), 0))
 
             # 把q_eval维度重新变回(episode_num, n_agents, n_actions)
             q_eval = torch.stack(q_eval)
