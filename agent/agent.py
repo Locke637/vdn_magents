@@ -333,6 +333,7 @@ class Agents:
             for index in neighbor_actions.keys():
                 if index in need_search_agent:
                     agent_pos = neighbor_actions[index][0:2].copy()
+                    compare_max_q = -100000
                     for i in range(self.n_actions):
                         search_act = self.search_actions[i]
                         search_idact = np.concatenate([agent_pos, search_act], axis=0)
@@ -345,8 +346,16 @@ class Agents:
                         t_inputs = torch.tensor(t_inputs, dtype=torch.float32).unsqueeze(0)
                         inputs_cuda = t_inputs.cuda()
                         q_value = self.policy.eval_rnn(inputs_cuda).squeeze()
+                        # version: add all max q
                         max_q_index = torch.argmax(q_value)
                         q_tot[max_q_index] += q_value[max_q_index]
+
+                    # # version: add only max q
+                    #     t_max_q = torch.max(q_value)
+                    #     if compare_max_q < t_max_q:
+                    #         add_q_value = q_value
+                    #         compare_max_q = t_max_q
+                    # q_tot += add_q_value
                 else:
                     search_idact = neighbor_actions[index]
                     t_inputs = np.hstack((inputs, search_idact))

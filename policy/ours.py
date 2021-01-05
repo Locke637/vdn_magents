@@ -155,13 +155,19 @@ class OURS:
                 if num == 1:
                     n_id.append(i)
             single_obs = obs[0][index_id]
-            if not n_id:
-                return_obs = torch.cat([single_obs, zeros_tensor]).unsqueeze(0)
-            else:
+            # if not n_id:
+            #     return_obs = torch.cat([single_obs, zeros_tensor]).unsqueeze(0)
+            # else:
+            #     for real_id in n_id:
+            #         single_idact = tmp_n_idact[real_id * self.args.idact_dim:(1 + real_id) * self.args.idact_dim]
+            #         return_obs.append(torch.cat([single_obs, single_idact]))
+            return_obs_single = torch.cat([single_obs, zeros_tensor])
+            return_obs.append(return_obs_single)
+            if n_id:
                 for real_id in n_id:
                     single_idact = tmp_n_idact[real_id * self.args.idact_dim:(1 + real_id) * self.args.idact_dim]
                     return_obs.append(torch.cat([single_obs, single_idact]))
-                return_obs = torch.stack(return_obs)
+            return_obs = torch.stack(return_obs)
             obs_with_idact.append(return_obs)
         return obs_with_idact
 
@@ -274,8 +280,24 @@ class OURS:
                 single_input_next = inputs_next[id].cuda()
                 # print(single_input.size())
                 # print(self.eval_rnn(single_input).size())
-                q_eval.append(torch.sum(self.eval_rnn(single_input), 0))
-                q_target.append(torch.sum(self.target_rnn(single_input_next), 0))
+                # q_eval.append(torch.sum(self.eval_rnn(single_input), 0))
+                # q_target.append(torch.sum(self.target_rnn(single_input_next), 0))
+                # print(single_input.size())
+                # print(single_input[0].size())
+                # print(single_input[1:].size())
+                all_q_eval = self.eval_rnn(single_input)
+                if len(all_q_eval) > 1:
+                    coll_q_eval = torch.mean(all_q_eval[1:], dim=0, keepdim=True)
+                    q_eval.append(all_q_eval[0] + coll_q_eval)
+                else:
+                    q_eval.append(all_q_eval)
+
+                all_q_target = self.target_rnn(single_input_next)
+                if len(all_q_target) > 1:
+                    coll_q_target = torch.mean(all_q_target[1:], dim=0, keepdim=True)
+                    q_target.append(all_q_target[0] + coll_q_target)
+                else:
+                    q_target.append(all_q_target)
 
             # 把q_eval维度重新变回(episode_num, n_agents, n_actions)
             q_eval = torch.stack(q_eval)

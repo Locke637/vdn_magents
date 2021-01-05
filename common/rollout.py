@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch.distributions import one_hot_categorical
 import time
-from common.common import find_neighbor_pos, find_neighbor_id, find_pos_index
+from common.common import find_neighbor_pos, find_neighbor_id
 
 
 class RolloutWorker:
@@ -766,7 +766,7 @@ class RolloutWorker:
 
             obs_all = self.env.get_observation(handles[0])
             pos = self.env.get_pos(handles[0])
-            neighbor_dic, neighbor_pos = find_neighbor_pos(pos)
+            neighbor_dic, neighbor_pos = find_neighbor_pos(pos, self.args.view_field)
             fixed_obs_all = self.env.get_observation(handles[1])
             view = obs_all[0]
             feature = obs_all[1]

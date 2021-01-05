@@ -4,6 +4,7 @@ import magent
 from common.arguments import get_common_args, get_coma_args, get_mixer_args, get_centralv_args, get_reinforce_args, \
     get_commnet_args, get_g2anet_args
 
+
 def get_config(map_size):
     gw = magent.gridworld
     cfg = gw.Config()
@@ -25,7 +26,7 @@ def get_config(map_size):
             'view_range': gw.CircleRange(4), 'attack_range': gw.CircleRange(0)
         })
 
-    predator_group  = cfg.add_group(predator)
+    predator_group = cfg.add_group(predator)
     prey_group = cfg.add_group(prey)
 
     a = gw.AgentSymbol(predator_group, index='any')
@@ -34,6 +35,7 @@ def get_config(map_size):
     cfg.add_reward_rule(gw.Event(a, 'attack', b), receiver=[a, b], value=[1, -1])
 
     return cfg
+
 
 if __name__ == '__main__':
     for i in range(1):
@@ -57,7 +59,7 @@ if __name__ == '__main__':
         #                     game_version=args.game_version,
         #                     replay_dir=args.replay_dir)
         # env = magent.GridWorld("battle", map_size=30)
-        args.map_size = 25
+        args.map_size = 270
         args.env_name = 'pursuit'
         args.map = args.alg
         args.name_time = '7'
@@ -88,6 +90,7 @@ if __name__ == '__main__':
         args.view_shape = v_dim_total
         args.act_dim = env.action_space[0][0]
         args.idact_dim = args.id_dim + args.act_dim
+        args.view_field = 10
         # args.id_dim = 2
         # print(args.view_shape)
         # print(obs_shape[0])
