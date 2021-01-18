@@ -43,6 +43,27 @@ def find_neighbor_pos(pos, view_field):
     return nei_index, nei_pos
 
 
+def find_max_q(tmp_q_buffer_list, q_tot):
+    comapre_q_max = -10000
+    for i in range(pow(2, len(tmp_q_buffer_list))):
+        index = []
+        find_index_i = i
+        while find_index_i / 2 != 0:
+            index.append(find_index_i % 2)
+            find_index_i = int(find_index_i / 2)
+        while len(index) < len(tmp_q_buffer_list):
+            index.insert(0, 0)
+        tmp_q_tot = np.zeros(2)
+        print(index)
+        for list_id, id in enumerate(index):
+            tmp_q_tot += tmp_q_buffer_list[list_id][id]
+        tmp_q_tot += q_tot
+        if max(tmp_q_tot) > comapre_q_max:
+            comapre_q_max = max(tmp_q_tot)
+            return_q_tot = tmp_q_tot
+    return return_q_tot
+
+
 # def find_pos_index(pos):
 #     baseline = 2 * math.pi / 3
 #     theta = math.atan2(pos[1], pos[0])
@@ -53,7 +74,10 @@ def find_neighbor_pos(pos, view_field):
 
 
 if __name__ == '__main__':
-    pos = [[0, 1], [5, 5], [2, 2], [3, 3], [3, 4], [3, 5], [11, 11], [20, 20]]
-    print(find_neighbor_pos(pos))
+    # pos = [[0, 1], [5, 5], [2, 2], [3, 3], [3, 4], [3, 5], [11, 11], [20, 20]]
+    # print(find_neighbor_pos(pos))
+    # q_list = [[[2, 3], [3, 1]], [[3, 1], [4, 1]], [[4, 5], [5, 6]]]
+    q_list = [[[2, 3], [3, 1]], [[3, 1], [4, 1]]]
+    print(find_max_q(q_list, [0, 0]))
     # index = find_pos_index(pos[0])
     # print(index)

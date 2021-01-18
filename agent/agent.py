@@ -309,13 +309,12 @@ class Agents:
                             evaluate=False):
         inputs = obs.copy()
         avail_actions_ind = np.nonzero(avail_actions)[0]  # index of actions which can be choose
-        # test_q_actions = np.zeros(len(neighbor_actions))
         delta_max_q = 0
 
-        # transform agent_num to onehot vector
-        agent_id = np.zeros(self.n_agents)
-        agent_id[agent_num] = 1.
-        max_q_index_dic = {}
+        # # transform agent_num to onehot vector
+        # agent_id = np.zeros(self.n_agents)
+        # agent_id[agent_num] = 1.
+        # max_q_index_dic = {}
 
         # if self.args.last_action:
         #     inputs = np.hstack((inputs, last_action))
@@ -330,10 +329,16 @@ class Agents:
             q_value = self.policy.eval_rnn(inputs_cuda).squeeze()
             q_tot = q_value
         else:
+            # t_inputs = np.hstack((inputs, np.zeros(self.args.idact_dim)))
+            # inputs_cuda = torch.tensor(t_inputs, dtype=torch.float32).unsqueeze(0).cuda()
+            # q_tot += self.policy.eval_rnn(inputs_cuda).squeeze()
+            tmp_q_buffer_list = []
             for index in neighbor_actions.keys():
                 if index in need_search_agent:
                     agent_pos = neighbor_actions[index][0:2].copy()
-                    compare_max_q = -100000
+                    # compare_max_q = -100000
+                    # tmp_q_buffer = []
+                    max_actdim_q_list = torch.ones(self.n_actions) * -100
                     for i in range(self.n_actions):
                         search_act = self.search_actions[i]
                         search_idact = np.concatenate([agent_pos, search_act], axis=0)
@@ -346,11 +351,25 @@ class Agents:
                         t_inputs = torch.tensor(t_inputs, dtype=torch.float32).unsqueeze(0)
                         inputs_cuda = t_inputs.cuda()
                         q_value = self.policy.eval_rnn(inputs_cuda).squeeze()
-                        # version: add all max q
-                        max_q_index = torch.argmax(q_value)
-                        q_tot[max_q_index] += q_value[max_q_index]
+                        # # version: add all max q
+                        # max_q_index = torch.argmax(q_value)
+                        # q_tot[max_q_index] += q_value[max_q_index]
 
-                    # # version: add only max q
+                        # version add up to find true max q
+                        # tmp_q_buffer.append(q_value)
+
+                        # version find every dim max q
+                        for act_index, act_dim_q in enumerate(q_value):
+                            if act_dim_q > max_actdim_q_list[act_index]:
+                                max_actdim_q_list[act_index] = act_dim_q
+
+                    # version add up to find true max q
+                    # tmp_q_buffer_list.append(tmp_q_buffer)
+
+                    # version find every dim max q
+                    q_tot += max_actdim_q_list.cuda()
+
+                    #     # version: add only max q
                     #     t_max_q = torch.max(q_value)
                     #     if compare_max_q < t_max_q:
                     #         add_q_value = q_value
@@ -364,6 +383,11 @@ class Agents:
                     q_value = self.policy.eval_rnn(t_inputs).squeeze()
                     q_tot += q_value
 
+            # # version find real max q
+            # q_tot = self.find_max_q(tmp_q_buffer_list, q_tot)
+            # version find every dim max q
+            # q_tot = self.find_max_q_edim(tmp_q_buffer_list, q_tot)
+
         if np.random.uniform() < epsilon:
             action = np.random.choice(avail_actions_ind)  # action是一个整数
         else:
@@ -372,6 +396,29 @@ class Agents:
             else:
                 action = torch.argmax(q_tot)
         return action, delta_max_q
+
+    # def find_max_q_edim(self, tmp_q_buffer_list, q_tot):
+    #     return_q_tot = torch.sum(tmp_q_buffer_list, dim=0).cuda() + q_tot
+    #     return return_q_tot
+
+    def find_max_q(self, tmp_q_buffer_list, q_tot):
+        comapre_q_max = -10000
+        for i in range(pow(self.n_actions, len(tmp_q_buffer_list))):
+            index = []
+            find_index_i = i
+            while find_index_i / self.n_actions != 0:
+                index.append(find_index_i % self.n_actions)
+                find_index_i = int(find_index_i / self.n_actions)
+            while len(index) < len(tmp_q_buffer_list):
+                index.insert(0, 0)
+            tmp_q_tot = torch.zeros(self.n_actions).cuda()
+            for list_id, id in enumerate(index):
+                tmp_q_tot += tmp_q_buffer_list[list_id][id]
+            tmp_q_tot += q_tot
+            if max(tmp_q_tot) > comapre_q_max:
+                comapre_q_max = max(tmp_q_tot)
+                return_q_tot = tmp_q_tot
+        return return_q_tot
 
     def choose_fixed_action(self, obs, last_action, agent_num, avail_actions, epsilon, maven_z=None, evaluate=False):
         epsilon = 0

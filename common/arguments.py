@@ -76,13 +76,13 @@ def get_coma_args(args):
 # arguments of vdn、 qmix、 qtran
 def get_mixer_args(args):
     # network
-    args.rnn_hidden_dim = 256
-    args.mlp_hidden_dim = [256, 256]
+    args.rnn_hidden_dim = 512
+    args.mlp_hidden_dim = [512, 512]
     args.qmix_hidden_dim = 128
     args.two_hyper_layers = False
     args.hyper_hidden_dim = 64
     args.qtran_hidden_dim = 64
-    args.lr = 3e-4
+    args.lr = 5e-4
 
     # epsilon greedy
     if args.load_model:

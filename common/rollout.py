@@ -79,7 +79,8 @@ class RolloutWorker:
             state = self.env.get_global_minimap(3, 3).flatten()
 
             for j in range(self.n_agents):
-                obs.append(np.concatenate([view[j].flatten(), feature[j]]))
+                # obs.append(np.concatenate([view[j].flatten(), feature[j]]))
+                obs.append(np.concatenate([view[j].flatten(), feature[j], np.zeros(self.n_actions + 2)]))
                 fixed_obs.append(np.concatenate([fixed_view[j].flatten(), fixed_feature[j]]))
                 # state = feature[j]
             # obs = self.env.get_obs()
@@ -719,7 +720,7 @@ class RolloutWorker:
     def generate_episode_ja_v3(self, episode_num=None, evaluate=False):
         if self.args.replay_dir != '' and evaluate and episode_num == 0:  # prepare for save replay of evaluation
             self.env.close()
-        o, u, r, s, avail_u, u_onehot, terminate, padded = [], [], [], [], [], [], [], []
+        o, u, r, s, avail_u, u_onehot, terminate, padded, ja_list, n_id = [], [], [], [], [], [], [], [], [], []
         self.env.reset()
         handles = self.env.get_handles()
         self.env.add_walls(method="random", n=self.n_agents * 2)
@@ -767,6 +768,10 @@ class RolloutWorker:
             obs_all = self.env.get_observation(handles[0])
             pos = self.env.get_pos(handles[0])
             neighbor_dic, neighbor_pos = find_neighbor_pos(pos, self.args.view_field)
+            # neighbor_dic, neighbor_pos = {}, {}
+            # for tt in range(self.n_agents):
+            #     neighbor_dic[tt] = []
+            #     neighbor_pos[tt] = []
             fixed_obs_all = self.env.get_observation(handles[1])
             view = obs_all[0]
             feature = obs_all[1]
@@ -779,7 +784,7 @@ class RolloutWorker:
                 fixed_obs.append(np.concatenate([fixed_view[j].flatten(), fixed_feature[j]]))
                 state = feature[j]
 
-            actions, avail_actions, actions_onehot, fixed_actions, n_id, real_ja_all = [], [], [], [], [], []
+            actions, avail_actions, actions_onehot, fixed_actions, real_ja_all = [], [], [], [], []
             for agent_id in range(self.n_agents):
                 neighbor_clean_actions = {}
                 need_search_neighbor = []
@@ -913,6 +918,7 @@ class RolloutWorker:
                             neighbor_ids[i][id_temp] = 1
                         neighbor_ids[i][i] = -id_list_len
                 n_id.append(neighbor_ids)
+                ja_list.append(real_ja_all)
             episode_reward += reward
             fixed_rewards += fixed_reward
             step += 1
@@ -950,7 +956,7 @@ class RolloutWorker:
             terminate.append([1.])
             if self.args.use_ja:
                 n_id.append(np.zeros((self.n_agents, self.n_agents)))
-                real_ja_all.append(np.zeros((self.n_agents, self.n_agents * (self.args.id_dim + self.args.n_actions))))
+                ja_list.append(np.zeros((self.n_agents, self.n_agents * (self.args.id_dim + self.args.n_actions))))
 
         episode = dict(o=o.copy(),
                        s=s.copy(),
@@ -967,7 +973,7 @@ class RolloutWorker:
                        )
         if self.args.use_ja:
             episode['neighbor_ids'] = n_id.copy()
-            episode['neighbor_idacts'] = real_ja_all.copy()
+            episode['neighbor_idacts'] = ja_list.copy()
         # add episode dim
         for key in episode.keys():
             episode[key] = np.array([episode[key]])
