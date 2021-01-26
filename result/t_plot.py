@@ -3,10 +3,17 @@ import pickle
 import matplotlib.pyplot as plt
 
 win_size = 50
-file_name = 'vdn/pursuit_8_160_0'
+# file_name = 'vdn/pursuit_8_160_14'
+# with open(file_name, 'rb') as f:
+#     data1 = pickle.load(f)
+# file_name = 'ours/pursuit_8_160_15'
+# with open(file_name, 'rb') as f:
+#     data2 = pickle.load(f)
+
+file_name = 'ours/pursuit_wdq_8_270_7'
 with open(file_name, 'rb') as f:
     data1 = pickle.load(f)
-file_name = 'ours/pursuit_8_160_0'
+file_name = 'ours/pursuit_wdq_8_270_9'
 with open(file_name, 'rb') as f:
     data2 = pickle.load(f)
 pdata1, pdata2 = [0 for _ in range(len(data1))], [0 for _ in range(len(data2))]

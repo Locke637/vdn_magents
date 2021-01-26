@@ -59,10 +59,10 @@ if __name__ == '__main__':
         #                     game_version=args.game_version,
         #                     replay_dir=args.replay_dir)
         # env = magent.GridWorld("battle", map_size=30)
-        args.map_size = 160
+        args.map_size = 270
         args.env_name = 'pursuit'
         args.map = args.alg
-        args.name_time = '7'
+        args.name_time = '8'
         # env = magent.GridWorld(args.env_name, map_size=args.map_size)
         env = magent.GridWorld(get_config(args.map_size))
         handles = env.get_handles()
@@ -100,7 +100,10 @@ if __name__ == '__main__':
         args.use_fixed_model = False
         args.load_num = 9
         args.use_ja = True
-        args.use_dqloss = False
+        args.use_dqloss = True
+        if args.use_dqloss:
+            args.alpha_dq_loss = 0.01  # 0.005
+            args.env_name += '_wdq'
         if args.use_ja:
             # args.obs_shape = obs_shape[0] + args.nei_n_agents * (args.id_dim + args.act_dim)
             args.obs_shape = obs_shape[0]

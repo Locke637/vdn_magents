@@ -12,7 +12,7 @@ class OURS:
         self.state_shape = args.state_shape
         self.obs_shape = args.obs_shape
         self.args = args
-        self.alpha_dq_loss = 0.0005
+        self.alpha_dq_loss = args.alpha_dq_loss
         input_shape = self.obs_shape
         real_view_shape = args.real_view_shape
         input_shape_view = args.view_shape
@@ -103,18 +103,35 @@ class OURS:
 
         # add delta q loss
         if self.args.use_dqloss:
-            n_ids = batch['neighbor_ids']
+            # n_ids = batch['neighbor_ids']
+            # n_ids = n_ids.view(-1, self.n_agents, self.n_agents)
+            n_mask = batch['neighbor_mask']
             tot_delta_q = torch.tensor(0.0).cuda()
             d_q_evals = q_evals.view(-1, self.n_agents)
-            n_ids = n_ids.view(-1, self.n_agents, self.n_agents)
+            n_mask = n_mask.view(-1, self.n_agents, self.n_agents)
+            dq_count = 0
             for k in range(max_episode_len):
-                t_dq = n_ids[k, :, :].cuda() * d_q_evals[k, :]
+                # print(n_ids[k])
+                # print(n_mask[k])
+                # t_dq = n_ids[k, :, :].cuda() * d_q_evals[k, :]
+                # base_q = n_ids[k, :, :].cuda() * d_q_evals[k, :].reshape([self.n_agents, -1])
+                t_dq = n_mask[k, :, :].cuda() * d_q_evals[k, :]
+                base_q = n_mask[k, :, :].cuda() * d_q_evals[k, :].reshape([self.n_agents, -1])
+                dq = t_dq - base_q
+                dq_tot = torch.pow(dq, 2).sum()
+                if dq_tot > 0:
+                    dq_count += 1
+                    tot_delta_q += dq_tot
                 # print(n_ids[k, :, :])
                 # print(d_q_evals[k, :])
+                # print(d_q_evals[k, :].reshape([self.n_agents, -1]))
                 # print(t_dq)
-                for delta_q in t_dq:
-                    tot_delta_q += torch.abs(delta_q.sum())
-            tot_delta_q = tot_delta_q / max_episode_len
+                # print(base_q)
+                # print(dq)
+                # print(tot_delta_q)
+                # for delta_q in dq:
+                #     tot_delta_q += torch.abs(delta_q.sum())
+            tot_delta_q = tot_delta_q / dq_count
 
         # 得到target_q
         q_targets[avail_u_next == 0.0] = - 9999999
@@ -132,6 +149,7 @@ class OURS:
         # 不能直接用mean，因为还有许多经验是没用的，所以要求和再比真实的经验数，才是真正的均值
         loss = (masked_td_error ** 2).sum() / mask.sum()
         if self.args.use_dqloss:
+            # print(loss, tot_delta_q)
             loss += tot_delta_q * self.alpha_dq_loss
         # print('Loss is ', loss)
         self.optimizer.zero_grad()
@@ -282,10 +300,10 @@ class OURS:
                 single_input_next = inputs_next[id].cuda()
                 # print(single_input.size())
                 # print(self.eval_rnn(single_input).size())
-                q_eval.append(torch.sum(self.eval_rnn(single_input), 0))
-                q_target.append(torch.sum(self.target_rnn(single_input_next), 0))
-                # q_eval.append(torch.mean(self.eval_rnn(single_input), dim=0, keepdim=True))
-                # q_target.append(torch.mean(self.target_rnn(single_input_next), dim=0, keepdim=True))
+                # q_eval.append(torch.sum(self.eval_rnn(single_input), 0))
+                # q_target.append(torch.sum(self.target_rnn(single_input_next), 0))
+                q_eval.append(torch.mean(self.eval_rnn(single_input), dim=0, keepdim=True))
+                q_target.append(torch.mean(self.target_rnn(single_input_next), dim=0, keepdim=True))
 
                 # print(single_input.size())
                 # print(single_input[0].size())

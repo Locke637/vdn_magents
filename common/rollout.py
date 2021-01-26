@@ -720,7 +720,7 @@ class RolloutWorker:
     def generate_episode_ja_v3(self, episode_num=None, evaluate=False):
         if self.args.replay_dir != '' and evaluate and episode_num == 0:  # prepare for save replay of evaluation
             self.env.close()
-        o, u, r, s, avail_u, u_onehot, terminate, padded, ja_list, n_id = [], [], [], [], [], [], [], [], [], []
+        o, u, r, s, avail_u, u_onehot, terminate, padded, ja_list, n_id, n_mask = [], [], [], [], [], [], [], [], [], [], []
         self.env.reset()
         handles = self.env.get_handles()
         self.env.add_walls(method="random", n=self.n_agents * 2)
@@ -755,7 +755,7 @@ class RolloutWorker:
             maven_z = list(maven_z.cpu())
 
         while not terminated and step < self.episode_limit:
-            max_q_infer_actions = {}
+            # max_q_infer_actions = {}
             tot_delta_max_q = 0
             need_search_neighbor_dic = {}
             num_agents = self.env.get_num(handles[0])
@@ -880,6 +880,7 @@ class RolloutWorker:
             self.env.set_action(handles[1], acts[1])
             terminated = self.env.step()
             reward = sum(self.env.get_reward(handles[0]))
+            ret_list = self.env.get_reward(handles[0])
             fixed_reward = sum(self.env.get_reward(handles[1]))
             self.env.clear_dead()
             if step == self.episode_limit - 1:
@@ -910,15 +911,27 @@ class RolloutWorker:
             #     n_id.append(np.zeros((self.n_agents, self.n_agents)))
             if self.args.use_ja:
                 neighbor_ids = np.zeros([self.n_agents, self.n_agents])
+                neighbor_mask = np.zeros([self.n_agents, self.n_agents])
                 for i in range(self.n_agents):
                     id_list = neighbor_dic[i]
-                    id_list_len = len(id_list)
+                    # id_list_len = len(id_list)
+                    if ret_list[i] > 0.7:
+                        for dq_mask_i in range(4):
+                            replace_index = len(n_id) - dq_mask_i - 1
+                            if replace_index >= 0 and len(n_id) > 0:
+                                # print(n_mask[replace_index], ret_list[i], i)
+                                n_mask[replace_index][i] = n_id[replace_index][i]
+                                # print(n_mask[replace_index], ret_list[i], i)
                     if id_list:
                         for id_temp in id_list:
                             neighbor_ids[i][id_temp] = 1
-                        neighbor_ids[i][i] = -id_list_len
+                            if ret_list[i] > 0.7:
+                                neighbor_mask[i][id_temp] = 1
+                        # neighbor_ids[i][i] = -id_list_len
+
                 n_id.append(neighbor_ids)
                 ja_list.append(real_ja_all)
+                n_mask.append(neighbor_mask)
             episode_reward += reward
             fixed_rewards += fixed_reward
             step += 1
@@ -957,6 +970,7 @@ class RolloutWorker:
             if self.args.use_ja:
                 n_id.append(np.zeros((self.n_agents, self.n_agents)))
                 ja_list.append(np.zeros((self.n_agents, self.n_agents * (self.args.id_dim + self.args.n_actions))))
+                n_mask.append(np.zeros((self.n_agents, self.n_agents)))
 
         episode = dict(o=o.copy(),
                        s=s.copy(),
@@ -974,6 +988,7 @@ class RolloutWorker:
         if self.args.use_ja:
             episode['neighbor_ids'] = n_id.copy()
             episode['neighbor_idacts'] = ja_list.copy()
+            episode['neighbor_mask'] = n_mask.copy()
         # add episode dim
         for key in episode.keys():
             episode[key] = np.array([episode[key]])

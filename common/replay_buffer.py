@@ -33,6 +33,7 @@ class ReplayBuffer:
                 [self.size, self.episode_limit, self.n_agents,
                  self.n_agents * (self.args.id_dim + self.args.n_actions)])
             self.buffers['neighbor_ids'] = np.empty([self.size, self.episode_limit, self.n_agents, self.n_agents])
+            self.buffers['neighbor_mask'] = np.empty([self.size, self.episode_limit, self.n_agents, self.n_agents])
         # if self.args.use_dqloss:
         #     self.buffers['neighbor_ids'] = np.empty([self.size, self.episode_limit, self.n_agents, self.n_agents])
         if self.args.alg == 'maven':
@@ -61,6 +62,7 @@ class ReplayBuffer:
             if self.args.use_ja:
                 self.buffers['neighbor_idacts'][idxs] = episode_batch['neighbor_idacts']
                 self.buffers['neighbor_ids'][idxs] = episode_batch['neighbor_ids']
+                self.buffers['neighbor_mask'][idxs] = episode_batch['neighbor_mask']
             # if self.args.use_dqloss:
             #     self.buffers['neighbor_ids'][idxs] = episode_batch['neighbor_ids']
             if self.args.alg == 'maven':
