@@ -1,5 +1,6 @@
 import numpy as np
 import threading
+import random
 
 
 class ReplayBuffer:
@@ -14,6 +15,7 @@ class ReplayBuffer:
         # memory management
         self.current_idx = 0
         self.current_size = 0
+        self.per_indexes = []
         # create the buffer to store info
         self.buffers = {'o': np.empty([self.size, self.episode_limit, self.n_agents, self.obs_shape]),
                         'u': np.empty([self.size, self.episode_limit, self.n_agents, 1]),
@@ -63,6 +65,13 @@ class ReplayBuffer:
                 self.buffers['neighbor_idacts'][idxs] = episode_batch['neighbor_idacts']
                 self.buffers['neighbor_ids'][idxs] = episode_batch['neighbor_ids']
                 self.buffers['neighbor_mask'][idxs] = episode_batch['neighbor_mask']
+                # if self.args.use_per:
+                #     # print(sum(self.buffers['neighbor_mask'][idxs]))
+                #     iscoop = sum(self.buffers['neighbor_mask'][idxs]).any()
+                #     if iscoop and idxs not in self.per_indexes:
+                #         self.per_indexes.append(idxs)
+                #     elif not iscoop and idxs in self.per_indexes:
+                #         self.per_indexes.remove(idxs)
             # if self.args.use_dqloss:
             #     self.buffers['neighbor_ids'][idxs] = episode_batch['neighbor_ids']
             if self.args.alg == 'maven':
@@ -70,7 +79,12 @@ class ReplayBuffer:
 
     def sample(self, batch_size):
         temp_buffer = {}
-        idx = np.random.randint(0, self.current_size, batch_size)
+        p = not (np.random.randint(0, 10))
+        if self.args.use_per and len(self.per_indexes) > 0 and p:
+            idx = random.sample(self.per_indexes, batch_size)
+        else:
+            idx = np.random.randint(0, self.current_size, batch_size)
+        # print(idx, self.per_indexes)
         for key in self.buffers.keys():
             temp_buffer[key] = self.buffers[key][idx]
         return temp_buffer

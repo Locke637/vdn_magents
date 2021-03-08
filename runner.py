@@ -3,7 +3,7 @@ import os
 from common.rollout import RolloutWorker, CommRolloutWorker
 from agent.agent import Agents, CommAgents
 from common.replay_buffer import ReplayBuffer
-import matplotlib.pyplot as plt
+from common.per import PrioritizedReplayBuffer
 import time
 import wandb
 import pickle
@@ -23,7 +23,10 @@ class Runner:
             self.rolloutWorker = RolloutWorker(env, self.agents, args)
         if args.learn and args.alg.find('coma') == -1 and args.alg.find('central_v') == -1 and args.alg.find(
                 'reinforce') == -1:  # these 3 algorithms are on-poliy
-            self.buffer = ReplayBuffer(args)
+            if args.use_per:
+                self.buffer = PrioritizedReplayBuffer(args)
+            else:
+                self.buffer = ReplayBuffer(args)
         self.args = args
         self.win_rates = []
         self.episode_rewards = []
@@ -92,10 +95,17 @@ class Runner:
             else:
                 self.buffer.store_episode(episode_batch)
                 for train_step in range(self.args.train_steps):
-                    mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
-                    # print(mini_batch['terminated'])
-                    # print(train_steps)
-                    self.agents.train(mini_batch, train_steps)
+                    # mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
+                    # # print(mini_batch['terminated'])
+                    # # print(train_steps)
+                    # dq = self.agents.train(mini_batch, train_steps)
+                    if self.args.use_per:
+                        mini_batch, idxs = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
+                        dq = self.agents.train(mini_batch, train_steps)
+                        self.buffer.update_priorities(idxs, dq)
+                    else:
+                        mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
+                        dq = self.agents.train(mini_batch, train_steps)
                     train_steps += 1
         # self.plt(num)
 

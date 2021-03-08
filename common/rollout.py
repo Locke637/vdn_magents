@@ -29,7 +29,7 @@ class RolloutWorker:
         o, u, r, s, avail_u, u_onehot, terminate, padded = [], [], [], [], [], [], [], []
         self.env.reset()
         handles = self.env.get_handles()
-        self.env.add_walls(method="random", n=self.n_agents * 2)
+        self.env.add_walls(method="random", n=self.n_agents * 2 * self.args.more_walls)
         self.env.add_agents(handles[0], method="random", n=self.n_agents)
         self.env.add_agents(handles[1], method="random", n=self.n_agents)
         terminated = False
@@ -52,7 +52,8 @@ class RolloutWorker:
 
         # sample z for maven
         if self.args.alg == 'maven':
-            state = self.env.get_state()
+            # state = self.env.get_state()
+            state = self.env.get_global_minimap(self.args.mini_map_shape, self.args.mini_map_shape).flatten()
             state = torch.tensor(state, dtype=torch.float32)
             if self.args.cuda:
                 state = state.cuda()
@@ -76,11 +77,11 @@ class RolloutWorker:
             fixed_feature = fixed_obs_all[1]
             obs = []
             fixed_obs = []
-            state = self.env.get_global_minimap(3, 3).flatten()
+            state = self.env.get_global_minimap(self.args.mini_map_shape, self.args.mini_map_shape).flatten()
 
             for j in range(self.n_agents):
-                # obs.append(np.concatenate([view[j].flatten(), feature[j]]))
-                obs.append(np.concatenate([view[j].flatten(), feature[j], np.zeros(self.n_actions + 2)]))
+                obs.append(np.concatenate([view[j].flatten(), feature[j]]))
+                # obs.append(np.concatenate([view[j].flatten(), feature[j], np.zeros(self.n_actions + 2)]))
                 fixed_obs.append(np.concatenate([fixed_view[j].flatten(), fixed_feature[j]]))
                 # state = feature[j]
             # obs = self.env.get_obs()
@@ -723,7 +724,7 @@ class RolloutWorker:
         o, u, r, s, avail_u, u_onehot, terminate, padded, ja_list, n_id, n_mask = [], [], [], [], [], [], [], [], [], [], []
         self.env.reset()
         handles = self.env.get_handles()
-        self.env.add_walls(method="random", n=self.n_agents * 2)
+        self.env.add_walls(method="random", n=self.n_agents * 2 * self.args.more_walls)
         self.env.add_agents(handles[0], method="random", n=self.n_agents)
         self.env.add_agents(handles[1], method="random", n=self.n_agents)
         terminated = False
@@ -767,7 +768,7 @@ class RolloutWorker:
 
             obs_all = self.env.get_observation(handles[0])
             pos = self.env.get_pos(handles[0])
-            neighbor_dic, neighbor_pos = find_neighbor_pos(pos, self.args.view_field)
+            neighbor_dic, neighbor_pos = find_neighbor_pos(pos, self.args.view_field, self.args.num_neighbor)
             # neighbor_dic, neighbor_pos = {}, {}
             # for tt in range(self.n_agents):
             #     neighbor_dic[tt] = []
@@ -915,7 +916,7 @@ class RolloutWorker:
                 for i in range(self.n_agents):
                     id_list = neighbor_dic[i]
                     # id_list_len = len(id_list)
-                    if ret_list[i] > 0.7:
+                    if ret_list[i] > self.args.reward_event:
                         for dq_mask_i in range(4):
                             replace_index = len(n_id) - dq_mask_i - 1
                             if replace_index >= 0 and len(n_id) > 0:
@@ -925,7 +926,7 @@ class RolloutWorker:
                     if id_list:
                         for id_temp in id_list:
                             neighbor_ids[i][id_temp] = 1
-                            if ret_list[i] > 0.7:
+                            if ret_list[i] > self.args.reward_event:
                                 neighbor_mask[i][id_temp] = 1
                         # neighbor_ids[i][i] = -id_list_len
 

@@ -80,6 +80,7 @@ class OURS:
         传入每个episode的同一个位置的transition
         '''
         episode_num = batch['o'].shape[0]
+        tot_delta_q = torch.tensor(0.0).cuda()
         self.init_hidden(episode_num)
         for key in batch.keys():  # 把batch里的数据转化成tensor
             if key == 'u':
@@ -102,7 +103,7 @@ class OURS:
         q_evals = torch.gather(q_evals, dim=3, index=u).squeeze(3)
 
         # add delta q loss
-        if self.args.use_dqloss:
+        if self.args.use_dqloss or self.args.use_per:
             # n_ids = batch['neighbor_ids']
             # n_ids = n_ids.view(-1, self.n_agents, self.n_agents)
             n_mask = batch['neighbor_mask']
@@ -131,6 +132,8 @@ class OURS:
                 # print(tot_delta_q)
                 # for delta_q in dq:
                 #     tot_delta_q += torch.abs(delta_q.sum())
+            if not dq_count:
+                dq_count = 1
             tot_delta_q = tot_delta_q / dq_count
 
         # 得到target_q
@@ -160,6 +163,8 @@ class OURS:
         if train_step > 0 and train_step % self.args.target_update_cycle == 0:
             self.target_rnn.load_state_dict(self.eval_rnn.state_dict())
             self.target_vdn_net.load_state_dict(self.eval_vdn_net.state_dict())
+
+        return tot_delta_q.float()
 
     def _get_neighbor_actids_inputs(self, neighbor_ids, neighbor_idact, obs):
         obs_with_idact = []

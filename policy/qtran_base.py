@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import os
-from network.base_net import RNN
+from network.base_net import RNN, MLP, ConvNet_RNN, ConvNet_MLP, ConvNet_MLP_Ja, ConvNet_MLP_Ja_v2
 from network.qtran_net import QtranV, QtranQBase
 
 
@@ -12,8 +12,13 @@ class QtranBase:
         self.state_shape = args.state_shape
         self.obs_shape = args.obs_shape
         self.args = args
+        # input_shape = self.obs_shape
+        real_view_shape = args.real_view_shape
+        input_shape_view = args.view_shape
+        input_shape_feature = args.feature_shape
 
         rnn_input_shape = self.obs_shape
+        self.args.rnn_hidden_dim += input_shape_feature
 
         # 根据参数决定RNN的输入维度
         if args.last_action:
@@ -22,8 +27,10 @@ class QtranBase:
             rnn_input_shape += self.n_agents
 
         # 神经网络
-        self.eval_rnn = RNN(rnn_input_shape, args)  # 每个agent选动作的网络
-        self.target_rnn = RNN(rnn_input_shape, args)
+        self.eval_rnn = RNN(real_view_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
+        self.target_rnn = RNN(real_view_shape, input_shape_view, input_shape_feature, args)
+        # self.eval_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)
+        # self.target_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)
 
         self.eval_joint_q = QtranQBase(args)  # Joint action-value network
         self.target_joint_q = QtranQBase(args)
@@ -82,7 +89,7 @@ class QtranBase:
                 batch[key] = torch.tensor(batch[key], dtype=torch.long)
             else:
                 batch[key] = torch.tensor(batch[key], dtype=torch.float32)
-        u, r, avail_u, avail_u_next, terminated = batch['u'], batch['r'],  batch['avail_u'], \
+        u, r, avail_u, avail_u_next, terminated = batch['u'], batch['r'], batch['avail_u'], \
                                                   batch['avail_u_next'], batch['terminated']
         mask = (1 - batch["padded"].float()).squeeze(-1)  # 用来把那些填充的经验的TD-error置0，从而不让它们影响到学习
         if self.args.cuda:
@@ -93,7 +100,8 @@ class QtranBase:
             terminated = terminated.cuda()
             mask = mask.cuda()
         # 得到每个agent对应的Q和hidden_states，维度为(episode个数, max_episode_len， n_agents， n_actions/hidden_dim)
-        individual_q_evals, individual_q_targets, hidden_evals, hidden_targets = self._get_individual_q(batch, max_episode_len)
+        individual_q_evals, individual_q_targets, hidden_evals, hidden_targets = self._get_individual_q(batch,
+                                                                                                        max_episode_len)
 
         # 得到当前时刻和下一时刻每个agent的局部最优动作及其one_hot表示
         individual_q_clone = individual_q_evals.clone()
@@ -167,7 +175,8 @@ class QtranBase:
             # 要用第一条经验把target网络的hidden_state初始化好，直接用第二条经验传入target网络不对
             if transition_idx == 0:
                 _, self.target_hidden = self.target_rnn(inputs, self.eval_hidden)
-            q_eval, self.eval_hidden = self.eval_rnn(inputs, self.eval_hidden)  # inputs维度为(40,96)，得到的q_eval维度为(40,n_actions)
+            q_eval, self.eval_hidden = self.eval_rnn(inputs,
+                                                     self.eval_hidden)  # inputs维度为(40,96)，得到的q_eval维度为(40,n_actions)
             q_target, self.target_hidden = self.target_rnn(inputs_next, self.target_hidden)
             hidden_eval, hidden_target = self.eval_hidden.clone(), self.target_hidden.clone()
 
@@ -256,6 +265,6 @@ class QtranBase:
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
 
-        torch.save(self.eval_rnn.state_dict(),  self.model_dir + '/' + num + '_rnn_net_params.pkl')
+        torch.save(self.eval_rnn.state_dict(), self.model_dir + '/' + num + '_rnn_net_params.pkl')
         torch.save(self.eval_joint_q.state_dict(), self.model_dir + '/' + num + '_joint_q_params.pkl')
         torch.save(self.v.state_dict(), self.model_dir + '/' + num + '_v_params.pkl')

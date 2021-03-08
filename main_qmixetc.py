@@ -35,8 +35,6 @@ def get_config_pursuit(map_size):
     cfg.add_reward_rule(gw.Event(a, 'attack', b), receiver=[a, b], value=[1, -1])
 
     return cfg
-
-
 def get_config_double_attack(map_size):
     gw = magent.gridworld
     cfg = gw.Config()
@@ -73,14 +71,10 @@ def get_config_double_attack(map_size):
 
     return cfg
 
-
 if __name__ == '__main__':
-    view_dic = {'pursuit': 5, 'battle': 6, 'double_attack': 4}
-    num_neighbor_dic = {'pursuit': 3, 'battle': 5, 'double_attack': 1}
-    reward_event_dic = {'pursuit': 0.7, 'battle': 0, 'double_attack': 0}
     for i in range(1):
         args = get_common_args()
-        args.alg = 'ours'
+        args.alg = 'vdn'
         if args.alg.find('coma') > -1:
             args = get_coma_args(args)
         elif args.alg.find('central_v') > -1:
@@ -93,18 +87,13 @@ if __name__ == '__main__':
             args = get_commnet_args(args)
         if args.alg.find('g2anet') > -1:
             args = get_g2anet_args(args)
-        # env = StarCraft2Env(map_name=args.map,
-        #                     step_mul=args.step_mul,
-        #                     difficulty=args.difficulty,
-        #                     game_version=args.game_version,
-        #                     replay_dir=args.replay_dir)
-        # env = magent.GridWorld("battle", map_size=30)
-        args.map_size = 120  # 80
+
+        args.map_size = 150  # 80
         args.env_name = 'double_attack'
         args.map = args.alg
         args.name_time = 't'
         # env = magent.GridWorld(args.env_name, map_size=args.map_size)
-        env = magent.GridWorld(get_config_double_attack(args.map_size))  # pursuit 180 270 330
+        env = magent.GridWorld(get_config_double_attack(args.map_size))
         handles = env.get_handles()
         eval_obs = None
         feature_dim = env.get_feature_space(handles[0])
@@ -112,12 +101,13 @@ if __name__ == '__main__':
         real_view_shape = view_dim
         v_dim_total = view_dim[0] * view_dim[1] * view_dim[2]
         obs_shape = (v_dim_total + feature_dim[0],)
+        # act_dim = env.action_space
 
         # env_info = env.get_env_info()
         # print(env.action_space[0][0])
         args.n_actions = env.action_space[0][0]
-        args.n_agents = 5  # 5
-        args.more_walls = 2  # 1
+        args.n_agents = 5
+        args.more_walls = 2
         args.use_v1 = False
         if args.use_v1:
             args.nei_n_agents = args.n_agents
@@ -125,17 +115,10 @@ if __name__ == '__main__':
         else:
             args.nei_n_agents = args.n_agents
             args.id_dim = 2
-        args.state_shape = feature_dim[0]
-        # args.obs_shape = obs_shape[0]
+        args.mini_map_shape = 20
+        args.state_shape = (args.mini_map_shape * args.mini_map_shape) * 2
         args.view_shape = v_dim_total
         args.act_dim = env.action_space[0][0]
-        args.idact_dim = args.id_dim + args.act_dim
-        args.view_field = view_dic[args.env_name]
-        args.num_neighbor = num_neighbor_dic[args.env_name]
-        args.reward_event = reward_event_dic[args.env_name]
-        # args.id_dim = 2
-        # print(args.view_shape)
-        # print(obs_shape[0])
         args.feature_shape = feature_dim[0]
         args.real_view_shape = real_view_shape
         args.episode_limit = 350
@@ -144,17 +127,11 @@ if __name__ == '__main__':
         else:
             args.use_fixed_model = False
         args.load_num = 4  # 4
-        args.use_ja = True
-        args.use_dqloss = True
-        args.use_per = True
-        if args.use_per:
-            args.sample_times = 20
-        if args.use_dqloss:
-            args.alpha_dq_loss = 0.005  # 0.005
-            args.env_name += '_wdq'
+        args.use_ja = False
+        args.use_dqloss = False
+        args.use_per = False
         if args.use_ja:
-            # args.obs_shape = obs_shape[0] + args.nei_n_agents * (args.id_dim + args.act_dim)
-            args.obs_shape = obs_shape[0]
+            args.obs_shape = obs_shape[0] + args.nei_n_agents * (args.id_dim + args.act_dim)
         else:
             args.obs_shape = obs_shape[0]
         runner = Runner(env, args)

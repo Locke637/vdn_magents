@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from policy.vdn import VDN
+from policy.vdn_fixed import VDN_F
 from policy.qmix import QMIX
 from policy.ours import OURS
 from policy.coma import COMA
@@ -26,25 +27,6 @@ class Agents:
         self.search_ids = np.zeros(self.n_agents)
         if args.alg == 'vdn':
             self.policy = VDN(args)
-            if args.use_fixed_model:
-                args_goal_a = get_common_args()
-                args_goal_a.load_model = True
-                args_goal_a = get_mixer_args(args_goal_a)
-                args_goal_a.learn = False
-                args_goal_a.epsilon = 0  # 1
-                args_goal_a.min_epsilon = 0
-                args_goal_a.map = 'battle'
-                args_goal_a.n_actions = args.n_actions
-                args_goal_a.episode_limit = args.episode_limit
-                args_goal_a.n_agents = args.n_agents
-                args_goal_a.state_shape = args.state_shape
-                args_goal_a.feature_shape = args.feature_shape
-                args_goal_a.view_shape = args.view_shape
-                args_goal_a.obs_shape = args.obs_shape
-                args_goal_a.real_view_shape = args.real_view_shape
-                args_goal_a.load_num = args.load_num
-                self.fixed_policy = VDN(args_goal_a)
-
         elif args.alg == 'qmix':
             self.policy = QMIX(args)
         elif args.alg == 'ours':
@@ -63,6 +45,26 @@ class Agents:
             self.policy = Reinforce(args)
         else:
             raise Exception("No such algorithm")
+        if args.use_fixed_model:
+            args_goal_a = get_common_args()
+            args_goal_a.load_model = True
+            args_goal_a = get_mixer_args(args_goal_a)
+            args_goal_a.learn = False
+            args_goal_a.epsilon = 0  # 1
+            args_goal_a.min_epsilon = 0
+            args_goal_a.map = 'battle'
+            args_goal_a.n_actions = args.n_actions
+            args_goal_a.episode_limit = args.episode_limit
+            args_goal_a.n_agents = args.n_agents
+            args_goal_a.state_shape = args.state_shape
+            args_goal_a.feature_shape = args.feature_shape
+            args_goal_a.view_shape = args.view_shape
+            args_goal_a.obs_shape = args.obs_shape
+            args_goal_a.real_view_shape = args.real_view_shape
+            args_goal_a.load_num = args.load_num
+            args_goal_a.use_ja = False
+            args_goal_a.mlp_hidden_dim = [512, 512]
+            self.fixed_policy = VDN_F(args_goal_a)
         self.args = args
         print('Init Agents')
 
@@ -94,8 +96,10 @@ class Agents:
                 maven_z = maven_z.cuda()
             q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state, maven_z)
         else:
-            # q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state)
-            q_value = self.policy.eval_rnn(inputs)
+            if 'qtran' in self.args.alg:
+                q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state)
+            else:
+                q_value = self.policy.eval_rnn(inputs)
 
         # choose action from q value
         if self.args.alg == 'coma' or self.args.alg == 'central_v' or self.args.alg == 'reinforce':
@@ -500,15 +504,19 @@ class Agents:
         return max_episode_len
 
     def train(self, batch, train_step, epsilon=None):  # coma needs epsilon for training
-
         # different episode has different length, so we need to get max length of the batch
+        dq = 0
         max_episode_len = self._get_max_episode_len(batch)
         for key in batch.keys():
             batch[key] = batch[key][:, :max_episode_len]
-        self.policy.learn(batch, max_episode_len, train_step, epsilon)
+        if self.args.use_ja:
+            dq = self.policy.learn(batch, max_episode_len, train_step, epsilon)
+        else:
+            self.policy.learn(batch, max_episode_len, train_step, epsilon)
         # print(train_step, self.args.save_cycle)
         if train_step > 0 and train_step % self.args.save_cycle == 0:
             self.policy.save_model(train_step)
+        return dq
 
 
 # Agent for communication

@@ -79,9 +79,9 @@ def get_mixer_args(args):
     args.rnn_hidden_dim = 512
     args.mlp_hidden_dim = [512, 512]
     args.qmix_hidden_dim = 128
-    args.two_hyper_layers = False
-    args.hyper_hidden_dim = 64
-    args.qtran_hidden_dim = 64
+    args.two_hyper_layers = True
+    args.hyper_hidden_dim = 128
+    args.qtran_hidden_dim = 128
     args.lr = 5e-4
 
     # epsilon greedy

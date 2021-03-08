@@ -9,11 +9,18 @@ win_size = 50
 # file_name = 'ours/pursuit_8_160_15'
 # with open(file_name, 'rb') as f:
 #     data2 = pickle.load(f)
+# li = np.ones([10, 5, 1])
+# idx = [0,1]
+# print(li[idx])
+# for i in range(20):
+#     print(not (np.random.randint(0, 10)))
 
-file_name = 'ours/pursuit_wdq_8_270_7'
+# file_name = 'ours/pursuit_wdq_8_270_14'
+file_name = 'vdn/battle_5_120_t'
 with open(file_name, 'rb') as f:
     data1 = pickle.load(f)
-file_name = 'ours/pursuit_wdq_8_270_9'
+# file_name = 'ours/pursuit_wdq_8_270_17'
+file_name = 'ours/battle_wdq_5_120_t'
 with open(file_name, 'rb') as f:
     data2 = pickle.load(f)
 pdata1, pdata2 = [0 for _ in range(len(data1))], [0 for _ in range(len(data2))]

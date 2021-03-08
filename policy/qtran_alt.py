@@ -11,17 +11,27 @@ class QtranAlt:
         self.n_agents = args.n_agents
         self.state_shape = args.state_shape
         self.obs_shape = args.obs_shape
+        # rnn_input_shape = self.obs_shape
+        self.args = args
+
+        real_view_shape = args.real_view_shape
+        input_shape_view = args.view_shape
+        input_shape_feature = args.feature_shape
+
         rnn_input_shape = self.obs_shape
+        self.args.rnn_hidden_dim += input_shape_feature
 
         # 根据参数决定RNN的输入维度
         if args.last_action:
             rnn_input_shape += self.n_actions  # 当前agent的上一个动作的one_hot向量
         if args.reuse_network:
             rnn_input_shape += self.n_agents
-        self.args = args
+
         # 神经网络
-        self.eval_rnn = RNN(rnn_input_shape, args)  # individual networks
-        self.target_rnn = RNN(rnn_input_shape, args)
+        # self.eval_rnn = RNN(rnn_input_shape, args)  # individual networks
+        # self.target_rnn = RNN(rnn_input_shape, args)
+        self.eval_rnn = RNN(real_view_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
+        self.target_rnn = RNN(real_view_shape, input_shape_view, input_shape_feature, args)
 
         self.eval_joint_q = QtranQAlt(args)  # counterfactual joint networks
         self.target_joint_q = QtranQAlt(args)

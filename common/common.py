@@ -12,8 +12,8 @@ def find_neighbor_id(pos, view_field):
     return nei_index
 
 
-def find_neighbor_pos(pos, view_field):
-    num_neighbor = 3
+def find_neighbor_pos(pos, view_field, num_neighbor):
+    # num_neighbor = 3
     # view_field = 5
     nei_index = {}
     nei_pos = {}
