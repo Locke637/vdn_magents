@@ -16,11 +16,11 @@ win_size = 50
 #     print(not (np.random.randint(0, 10)))
 
 # file_name = 'ours/pursuit_wdq_8_270_14'
-file_name = 'vdn/battle_5_120_t'
+file_name = 'vdn/battle_5_100_t'
 with open(file_name, 'rb') as f:
     data1 = pickle.load(f)
 # file_name = 'ours/pursuit_wdq_8_270_17'
-file_name = 'ours/battle_wdq_5_120_t'
+file_name = 'ours/battle_wdq_5_100_t'
 with open(file_name, 'rb') as f:
     data2 = pickle.load(f)
 pdata1, pdata2 = [0 for _ in range(len(data1))], [0 for _ in range(len(data2))]

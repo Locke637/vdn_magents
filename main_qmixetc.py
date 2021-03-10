@@ -35,6 +35,8 @@ def get_config_pursuit(map_size):
     cfg.add_reward_rule(gw.Event(a, 'attack', b), receiver=[a, b], value=[1, -1])
 
     return cfg
+
+
 def get_config_double_attack(map_size):
     gw = magent.gridworld
     cfg = gw.Config()
@@ -71,6 +73,7 @@ def get_config_double_attack(map_size):
 
     return cfg
 
+
 if __name__ == '__main__':
     for i in range(1):
         args = get_common_args()
@@ -88,8 +91,8 @@ if __name__ == '__main__':
         if args.alg.find('g2anet') > -1:
             args = get_g2anet_args(args)
 
-        args.map_size = 150  # 80
-        args.env_name = 'double_attack'
+        args.map_size = 100  # 80
+        args.env_name = 'battle'  # double_attack battle
         args.map = args.alg
         args.name_time = 't'
         # env = magent.GridWorld(args.env_name, map_size=args.map_size)
@@ -107,7 +110,7 @@ if __name__ == '__main__':
         # print(env.action_space[0][0])
         args.n_actions = env.action_space[0][0]
         args.n_agents = 5
-        args.more_walls = 2
+        args.more_walls = 10
         args.use_v1 = False
         if args.use_v1:
             args.nei_n_agents = args.n_agents

@@ -386,7 +386,7 @@ class ConvNet_MLP_Ja_v2(nn.Module):
         # self.fc3 = nn.Linear(args.mlp_hidden_dim[0] + self.neighbor_actions_view, args.mlp_hidden_dim[1])
         # self.fc4 = nn.Linear(args.mlp_hidden_dim[1], args.n_actions)
 
-        self.fc1 = nn.Linear(160, args.mlp_hidden_dim[0])  # pursuit 192
+        self.fc1 = nn.Linear(864, args.mlp_hidden_dim[0])  # pursuit 192
         # print(args.rnn_hidden_dim + input_shape_feature + self.neighbor_actions_view)
         self.fc2 = nn.Linear(args.mlp_hidden_dim[0] + input_shape_feature + self.neighbor_actions_view,
                              args.mlp_hidden_dim[1])
@@ -406,7 +406,7 @@ class ConvNet_MLP_Ja_v2(nn.Module):
 
         out = self.layer1(view)
         out = self.layer2(out)
-        out = out.reshape(-1, 160)  # pursuit 192
+        out = out.reshape(-1, 864)  # pursuit 192 battle 864
         x = f.relu(self.fc1(out))
         h = torch.cat((x, feature_w_neighbor_action), dim=1)
         h = f.relu(self.fc2(h))

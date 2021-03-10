@@ -62,12 +62,12 @@ class RolloutWorker:
             maven_z = list(maven_z.cpu())
 
         while not terminated and step < self.episode_limit:
-            num_agents = self.env.get_num(handles[0])
-            fixed_num_agents = self.env.get_num(handles[1])
-            if num_agents < self.n_agents:
-                self.env.add_agents(handles[0], method="random", n=self.n_agents - num_agents)
-            if fixed_num_agents < self.n_agents:
-                self.env.add_agents(handles[1], method="random", n=self.n_agents - fixed_num_agents)
+            # num_agents = self.env.get_num(handles[0])
+            # fixed_num_agents = self.env.get_num(handles[1])
+            # if num_agents < self.n_agents:
+            #     self.env.add_agents(handles[0], method="random", n=self.n_agents - num_agents)
+            # if fixed_num_agents < self.n_agents:
+            #     self.env.add_agents(handles[1], method="random", n=self.n_agents - fixed_num_agents)
 
             obs_all = self.env.get_observation(handles[0])
             fixed_obs_all = self.env.get_observation(handles[1])
@@ -129,7 +129,9 @@ class RolloutWorker:
             if self.args.use_fixed_model:
                 acts[1] = np.array(fixed_actions)
             else:
-                acts[1] = np.array(np.random.randint(0, self.n_actions, size=self.n_agents, dtype='int32'))
+                # acts[1] = np.array(np.random.randint(0, self.n_actions, size=self.n_agents, dtype='int32'))
+                acts[1] = np.array(
+                    np.random.randint(0, self.n_actions, size=self.env.get_num(handles[1]), dtype='int32'))
             self.env.set_action(handles[0], acts[0])
             self.env.set_action(handles[1], acts[1])
             terminated = self.env.step()
@@ -759,12 +761,12 @@ class RolloutWorker:
             # max_q_infer_actions = {}
             tot_delta_max_q = 0
             need_search_neighbor_dic = {}
-            num_agents = self.env.get_num(handles[0])
-            fixed_num_agents = self.env.get_num(handles[1])
-            if num_agents < self.n_agents:
-                self.env.add_agents(handles[0], method="random", n=self.n_agents - num_agents)
-            if fixed_num_agents < self.n_agents:
-                self.env.add_agents(handles[1], method="random", n=self.n_agents - fixed_num_agents)
+            # num_agents = self.env.get_num(handles[0])
+            # fixed_num_agents = self.env.get_num(handles[1])
+            # if num_agents < self.n_agents:
+            #     self.env.add_agents(handles[0], method="random", n=self.n_agents - num_agents)
+            # if fixed_num_agents < self.n_agents:
+            #     self.env.add_agents(handles[1], method="random", n=self.n_agents - fixed_num_agents)
 
             obs_all = self.env.get_observation(handles[0])
             pos = self.env.get_pos(handles[0])
@@ -876,7 +878,9 @@ class RolloutWorker:
             if self.args.use_fixed_model:
                 acts[1] = np.array(fixed_actions)
             else:
-                acts[1] = np.array(np.random.randint(0, self.n_actions, size=self.n_agents, dtype='int32'))
+                # acts[1] = np.array(np.random.randint(0, self.n_actions, size=self.n_agents, dtype='int32'))
+                acts[1] = np.array(
+                    np.random.randint(0, self.n_actions, size=self.env.get_num(handles[1]), dtype='int32'))
             self.env.set_action(handles[0], acts[0])
             self.env.set_action(handles[1], acts[1])
             terminated = self.env.step()

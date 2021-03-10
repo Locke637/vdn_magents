@@ -76,7 +76,7 @@ def get_config_double_attack(map_size):
 
 if __name__ == '__main__':
     view_dic = {'pursuit': 5, 'battle': 6, 'double_attack': 4}
-    num_neighbor_dic = {'pursuit': 3, 'battle': 5, 'double_attack': 1}
+    num_neighbor_dic = {'pursuit': 3, 'battle': 4, 'double_attack': 1}
     reward_event_dic = {'pursuit': 0.7, 'battle': 0, 'double_attack': 0}
     for i in range(1):
         args = get_common_args()
@@ -99,12 +99,12 @@ if __name__ == '__main__':
         #                     game_version=args.game_version,
         #                     replay_dir=args.replay_dir)
         # env = magent.GridWorld("battle", map_size=30)
-        args.map_size = 120  # 80
-        args.env_name = 'double_attack'
+        args.map_size = 100  # 80
+        args.env_name = 'battle'
         args.map = args.alg
         args.name_time = 't'
-        # env = magent.GridWorld(args.env_name, map_size=args.map_size)
-        env = magent.GridWorld(get_config_double_attack(args.map_size))  # pursuit 180 270 330
+        env = magent.GridWorld(args.env_name, map_size=args.map_size)
+        # env = magent.GridWorld(get_config_double_attack(args.map_size))  # pursuit 180 270 330
         handles = env.get_handles()
         eval_obs = None
         feature_dim = env.get_feature_space(handles[0])
@@ -117,7 +117,7 @@ if __name__ == '__main__':
         # print(env.action_space[0][0])
         args.n_actions = env.action_space[0][0]
         args.n_agents = 5  # 5
-        args.more_walls = 2  # 1
+        args.more_walls = 10  # 1
         args.use_v1 = False
         if args.use_v1:
             args.nei_n_agents = args.n_agents
@@ -148,7 +148,7 @@ if __name__ == '__main__':
         args.use_dqloss = True
         args.use_per = True
         if args.use_per:
-            args.sample_times = 20
+            args.sample_times = 5
         if args.use_dqloss:
             args.alpha_dq_loss = 0.005  # 0.005
             args.env_name += '_wdq'
