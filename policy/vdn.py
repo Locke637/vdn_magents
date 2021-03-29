@@ -11,7 +11,7 @@ class VDN:
         self.state_shape = args.state_shape
         self.obs_shape = args.obs_shape
         self.args = args
-        self.alpha_dq_loss = 0.0005
+        # self.alpha_dq_loss = 0.0005
         input_shape = self.obs_shape
         real_view_shape = args.real_view_shape
         input_shape_view = args.view_shape
@@ -27,12 +27,12 @@ class VDN:
         # 神经网络
         # self.eval_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
         # self.target_rnn = RNN(input_shape, input_shape_view, input_shape_feature, args)
-        if self.args.use_ja:
-            self.eval_rnn = ConvNet_MLP_Ja_v2(real_view_shape, input_shape_view, input_shape_feature, args)
-            self.target_rnn = ConvNet_MLP_Ja_v2(real_view_shape, input_shape_view, input_shape_feature, args)
-        else:
-            self.eval_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)
-            self.target_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)
+        # if self.args.use_ja:
+        #     self.eval_rnn = ConvNet_MLP_Ja_v2(real_view_shape, input_shape_view, input_shape_feature, args)
+        #     self.target_rnn = ConvNet_MLP_Ja_v2(real_view_shape, input_shape_view, input_shape_feature, args)
+        # else:
+        self.eval_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)
+        self.target_rnn = ConvNet_MLP(real_view_shape, input_shape_view, input_shape_feature, args)
         # self.eval_rnn = MLP(input_shape_view, input_shape_feature, args)  # 每个agent选动作的网络
         # self.target_rnn = MLP(input_shape_view, input_shape_feature, args)
         self.eval_vdn_net = VDNNet()  # 把agentsQ值加起来的网络
@@ -44,7 +44,7 @@ class VDN:
             self.eval_vdn_net.cuda()
             self.target_vdn_net.cuda()
 
-        self.model_dir = args.model_dir + '/' + args.alg + '/' + args.map
+        self.model_dir = args.model_dir + '/' + args.alg + '/' + args.env_name + '/' + str(args.map_size)
         # 如果存在模型则加载模型
         if self.args.load_model:
             if os.path.exists(self.model_dir + '/' + str(load_num) + '_rnn_net_params.pkl'):
@@ -100,20 +100,20 @@ class VDN:
         # 取每个agent动作对应的Q值，并且把最后不需要的一维去掉，因为最后一维只有一个值了
         q_evals = torch.gather(q_evals, dim=3, index=u).squeeze(3)
 
-        # add delta q loss
-        if self.args.use_dqloss:
-            n_ids = batch['neighbor_ids']
-            tot_delta_q = torch.tensor(0.0).cuda()
-            d_q_evals = q_evals.view(-1, self.n_agents)
-            n_ids = n_ids.view(-1, self.n_agents, self.n_agents)
-            for k in range(max_episode_len):
-                t_dq = n_ids[k, :, :].cuda() * d_q_evals[k, :]
-                # print(n_ids[k, :, :])
-                # print(d_q_evals[k, :])
-                # print(t_dq)
-                for delta_q in t_dq:
-                    tot_delta_q += torch.abs(delta_q.sum())
-            tot_delta_q = tot_delta_q / max_episode_len
+        # # add delta q loss
+        # if self.args.use_dqloss:
+        #     n_ids = batch['neighbor_ids']
+        #     tot_delta_q = torch.tensor(0.0).cuda()
+        #     d_q_evals = q_evals.view(-1, self.n_agents)
+        #     n_ids = n_ids.view(-1, self.n_agents, self.n_agents)
+        #     for k in range(max_episode_len):
+        #         t_dq = n_ids[k, :, :].cuda() * d_q_evals[k, :]
+        #         # print(n_ids[k, :, :])
+        #         # print(d_q_evals[k, :])
+        #         # print(t_dq)
+        #         for delta_q in t_dq:
+        #             tot_delta_q += torch.abs(delta_q.sum())
+        #     tot_delta_q = tot_delta_q / max_episode_len
 
         # 得到target_q
         q_targets[avail_u_next == 0.0] = - 9999999
@@ -130,8 +130,8 @@ class VDN:
         # loss = masked_td_error.pow(2).mean()
         # 不能直接用mean，因为还有许多经验是没用的，所以要求和再比真实的经验数，才是真正的均值
         loss = (masked_td_error ** 2).sum() / mask.sum()
-        if self.args.use_dqloss:
-            loss += tot_delta_q * self.alpha_dq_loss
+        # if self.args.use_dqloss:
+        #     loss += tot_delta_q * self.alpha_dq_loss
         # print('Loss is ', loss)
         self.optimizer.zero_grad()
         loss.backward()

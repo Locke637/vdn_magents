@@ -77,7 +77,7 @@ def get_config_double_attack(map_size):
 if __name__ == '__main__':
     for i in range(1):
         args = get_common_args()
-        args.alg = 'vdn'
+        args.alg = 'maven'  # vdn qmix qtrans maven
         if args.alg.find('coma') > -1:
             args = get_coma_args(args)
         elif args.alg.find('central_v') > -1:
@@ -91,12 +91,12 @@ if __name__ == '__main__':
         if args.alg.find('g2anet') > -1:
             args = get_g2anet_args(args)
 
-        args.map_size = 100  # 80
-        args.env_name = 'battle'  # double_attack battle
+        args.map_size = 180  # 80
+        args.env_name = 'pursuit'  # double_attack battle
         args.map = args.alg
-        args.name_time = 't'
-        # env = magent.GridWorld(args.env_name, map_size=args.map_size)
-        env = magent.GridWorld(get_config_double_attack(args.map_size))
+        args.name_time = 'est_16_huge'
+        env = magent.GridWorld(args.env_name, map_size=args.map_size + 180)
+        # env = magent.GridWorld(get_config_double_attack(args.map_size))
         handles = env.get_handles()
         eval_obs = None
         feature_dim = env.get_feature_space(handles[0])
@@ -109,8 +109,13 @@ if __name__ == '__main__':
         # env_info = env.get_env_info()
         # print(env.action_space[0][0])
         args.n_actions = env.action_space[0][0]
-        args.n_agents = 5
-        args.more_walls = 10
+        args.fixed_n_actions = env.action_space[1][0]
+        args.n_agents = 8
+        args.more_walls = 1
+        if args.alg == 'maven' and args.load_model:
+            args.est_mod_num = 2
+        else:
+            args.est_mod_num = 1
         args.use_v1 = False
         if args.use_v1:
             args.nei_n_agents = args.n_agents
@@ -118,7 +123,7 @@ if __name__ == '__main__':
         else:
             args.nei_n_agents = args.n_agents
             args.id_dim = 2
-        args.mini_map_shape = 20
+        args.mini_map_shape = 30
         args.state_shape = (args.mini_map_shape * args.mini_map_shape) * 2
         args.view_shape = v_dim_total
         args.act_dim = env.action_space[0][0]

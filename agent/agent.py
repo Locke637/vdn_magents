@@ -19,7 +19,7 @@ import time
 class Agents:
     def __init__(self, args):
         self.n_actions = args.n_actions
-        self.n_agents = args.n_agents
+        self.n_agents = args.n_agents*2
         self.state_shape = args.state_shape
         self.obs_shape = args.obs_shape
         self.idact_shape = args.id_dim + args.n_actions
@@ -99,6 +99,7 @@ class Agents:
             if 'qtran' in self.args.alg:
                 q_value, self.policy.eval_hidden[:, agent_num, :] = self.policy.eval_rnn(inputs, hidden_state)
             else:
+                # print(inputs.shape)
                 q_value = self.policy.eval_rnn(inputs)
 
         # choose action from q value
@@ -447,15 +448,15 @@ class Agents:
             hidden_state = hidden_state.cuda()
 
         # get q value
-        if self.args.alg == 'maven':
-            maven_z = torch.tensor(maven_z, dtype=torch.float32).unsqueeze(0)
-            if self.args.cuda:
-                maven_z = maven_z.cuda()
-            q_value, self.fixed_policy.eval_hidden[:, agent_num, :] = self.fixed_policy.eval_rnn(inputs, hidden_state,
-                                                                                                 maven_z)
-        else:
+        # if self.args.alg == 'maven':
+        #     maven_z = torch.tensor(maven_z, dtype=torch.float32).unsqueeze(0)
+        #     if self.args.cuda:
+        #         maven_z = maven_z.cuda()
+        #     q_value, self.fixed_policy.eval_hidden[:, agent_num, :] = self.fixed_policy.eval_rnn(inputs, hidden_state,
+        #                                                                                          maven_z)
+        # else:
             # q_value, self.fixed_policy.eval_hidden[:, agent_num, :] = self.fixed_policy.eval_rnn(inputs, hidden_state)
-            q_value = self.fixed_policy.eval_rnn(inputs)
+        q_value = self.fixed_policy.eval_rnn(inputs)
 
         # choose action from q value
         if self.args.alg == 'coma' or self.args.alg == 'central_v' or self.args.alg == 'reinforce':

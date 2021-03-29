@@ -27,7 +27,7 @@ def get_common_args():
     parser.add_argument('--evaluate_epoch', type=int, default=20, help='number of the epoch to evaluate the agent')
     parser.add_argument('--model_dir', type=str, default='./model', help='model directory of the policy')
     parser.add_argument('--result_dir', type=str, default='./result', help='result directory of the policy')
-    parser.add_argument('--load_model', type=bool, default=False, help='whether to load the pretrained model')
+    parser.add_argument('--load_model', type=bool, default=True, help='whether to load the pretrained model')
     parser.add_argument('--learn', type=bool, default=True, help='whether to train the model')
     parser.add_argument('--cuda', type=bool, default=True, help='whether to use the GPU')
     parser.add_argument('--name_time', type=str, default='0', help='name time')
@@ -78,7 +78,7 @@ def get_mixer_args(args):
     # network
     args.rnn_hidden_dim = 512
     args.mlp_hidden_dim = [512, 512]
-    args.qmix_hidden_dim = 128
+    args.qmix_hidden_dim = 256  # 128
     args.two_hyper_layers = True
     args.hyper_hidden_dim = 128
     args.qtran_hidden_dim = 128
@@ -96,7 +96,7 @@ def get_mixer_args(args):
     args.epsilon_anneal_scale = 'step'
 
     # the number of the epoch to train the agent
-    args.n_epoch = 5000
+    args.n_epoch = 101
 
     # the number of the episodes in one epoch
     args.n_episodes = 1
@@ -105,14 +105,14 @@ def get_mixer_args(args):
     args.train_steps = 1
 
     # # how often to evaluate
-    args.evaluate_cycle = 5
+    args.evaluate_cycle = 1
 
     # experience replay
     args.batch_size = 1
     args.buffer_size = int(1e2)
 
     # how often to save the model
-    args.save_cycle = 5000
+    args.save_cycle = 1000
 
     # how often to update the target_net
     args.target_update_cycle = 200

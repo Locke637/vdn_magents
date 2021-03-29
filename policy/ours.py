@@ -12,7 +12,8 @@ class OURS:
         self.state_shape = args.state_shape
         self.obs_shape = args.obs_shape
         self.args = args
-        self.alpha_dq_loss = args.alpha_dq_loss
+        if args.use_dqloss:
+            self.alpha_dq_loss = args.alpha_dq_loss
         input_shape = self.obs_shape
         real_view_shape = args.real_view_shape
         input_shape_view = args.view_shape
@@ -45,7 +46,7 @@ class OURS:
             self.eval_vdn_net.cuda()
             self.target_vdn_net.cuda()
 
-        self.model_dir = args.model_dir + '/' + args.alg + '/' + args.map
+        self.model_dir = args.model_dir + '/' + args.alg + '/' + args.env_name + '/' + str(args.map_size)
         # 如果存在模型则加载模型
         if self.args.load_model:
             if os.path.exists(self.model_dir + '/' + str(load_num) + '_rnn_net_params.pkl'):

@@ -92,7 +92,7 @@ class Runner:
                     'reinforce') > -1:
                 self.agents.train(episode_batch, train_steps, self.rolloutWorker.epsilon)
                 train_steps += 1
-            else:
+            elif not self.args.load_model:
                 self.buffer.store_episode(episode_batch)
                 for train_step in range(self.args.train_steps):
                     # mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))

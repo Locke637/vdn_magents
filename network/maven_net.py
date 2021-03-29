@@ -72,7 +72,7 @@ class VarDistribution(nn.Module):
         for i in range(episode_num):
             length = episode_length[i]
             # only take the valid data
-            q,  avail_action, s = q_value[i, :length], avail_actions[i, :length], state[i, :length]
+            q, avail_action, s = q_value[i, :length], avail_actions[i, :length], state[i, :length]
             q = f.softmax(q, dim=-1)
             q = q * avail_action
             q = q / q.sum(dim=-1, keepdim=True)

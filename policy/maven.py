@@ -39,7 +39,7 @@ class MAVEN:
             self.eval_qmix_net.cuda()
             self.target_qmix_net.cuda()
             self.mi_net.cuda()
-        self.model_dir = args.model_dir + '/' + args.alg + '/' + args.map
+        self.model_dir = args.model_dir + '/' + args.alg + '/' + args.env_name + '/' + str(args.map_size)
         # 如果存在模型则加载模型
         if self.args.load_model:
             if os.path.exists(self.model_dir + '/rnn_net_params.pkl'):
@@ -50,9 +50,10 @@ class MAVEN:
                 map_location = 'cuda:0' if self.args.cuda else 'cpu'
                 self.z_policy.load_state_dict(torch.load(path_z_policy, map_location=map_location))
                 self.eval_rnn.load_state_dict(torch.load(path_rnn, map_location=map_location))
-                self.eval_qmix_net.load_state_dict(torch.load(path_qmix, map_location=map_location))
-                self.mi_net.load_state_dict(torch.load(path_mi, map_location=map_location))
-                print('Successfully load the model: {}, {}, {} and {}'.format(path_z_policy, path_rnn, path_qmix, path_mi))
+                # self.eval_qmix_net.load_state_dict(torch.load(path_qmix, map_location=map_location))
+                # self.mi_net.load_state_dict(torch.load(path_mi, map_location=map_location))
+                print('Successfully load the model: {}, {}, {} and {}'.format(path_z_policy, path_rnn, path_qmix,
+                                                                              path_mi))
             else:
                 raise Exception("No model!")
 
@@ -60,7 +61,7 @@ class MAVEN:
         self.target_rnn.load_state_dict(self.eval_rnn.state_dict())
         self.target_qmix_net.load_state_dict(self.eval_qmix_net.state_dict())
 
-        self.eval_parameters = list(self.z_policy.parameters()) + list(self.eval_qmix_net.parameters()) +\
+        self.eval_parameters = list(self.z_policy.parameters()) + list(self.eval_qmix_net.parameters()) + \
                                list(self.eval_rnn.parameters()) + list(self.mi_net.parameters())
         if args.optimizer == "RMS":
             self.optimizer = torch.optim.RMSprop(self.eval_parameters, lr=args.lr)
@@ -85,9 +86,9 @@ class MAVEN:
                 batch[key] = torch.tensor(batch[key], dtype=torch.long)
             else:
                 batch[key] = torch.tensor(batch[key], dtype=torch.float32)
-        s, s_next, u, r, avail_u, avail_u_next, terminated, z = batch['s'], batch['s_next'], batch['u'], batch['r'],  \
-                                                                batch['avail_u'], batch['avail_u_next'],\
-                                                                batch['terminated'],   batch['z']
+        s, s_next, u, r, avail_u, avail_u_next, terminated, z = batch['s'], batch['s_next'], batch['u'], batch['r'], \
+                                                                batch['avail_u'], batch['avail_u_next'], \
+                                                                batch['terminated'], batch['z']
         mask = 1 - batch["padded"].float()  # 用来把那些填充的经验的TD-error置0，从而不让它们影响到学习
 
         # 得到每个agent对应的Q值，维度为(episode个数, max_episode_len， n_agents， n_actions)
@@ -216,14 +217,20 @@ class MAVEN:
 
     def init_hidden(self, episode_num):
         # 为每个episode中的每个agent都初始化一个eval_hidden、target_hidden
-        self.eval_hidden = torch.zeros((episode_num, self.n_agents, self.args.rnn_hidden_dim))
-        self.target_hidden = torch.zeros((episode_num, self.n_agents, self.args.rnn_hidden_dim))
+        if self.args.load_model:
+            self.eval_hidden = torch.zeros(
+                (episode_num, int(self.n_agents * self.args.est_mod_num), self.args.rnn_hidden_dim))
+            self.target_hidden = torch.zeros(
+                (episode_num, int(self.n_agents * self.args.est_mod_num), self.args.rnn_hidden_dim))
+        else:
+            self.eval_hidden = torch.zeros((episode_num, self.n_agents, self.args.rnn_hidden_dim))
+            self.target_hidden = torch.zeros((episode_num, self.n_agents, self.args.rnn_hidden_dim))
 
     def save_model(self, train_step):
         num = str(train_step // self.args.save_cycle)
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
         torch.save(self.z_policy.state_dict(), self.model_dir + '/' + num + '_z_policy_params.pkl')
-        torch.save(self.mi_net.state_dict(),  self.model_dir + '/' + num + '_mi_net_params.pkl')
+        torch.save(self.mi_net.state_dict(), self.model_dir + '/' + num + '_mi_net_params.pkl')
         torch.save(self.eval_qmix_net.state_dict(), self.model_dir + '/' + num + '_qmix_net_params.pkl')
-        torch.save(self.eval_rnn.state_dict(),  self.model_dir + '/' + num + '_rnn_net_params.pkl')
+        torch.save(self.eval_rnn.state_dict(), self.model_dir + '/' + num + '_rnn_net_params.pkl')

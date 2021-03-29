@@ -99,10 +99,11 @@ if __name__ == '__main__':
         #                     game_version=args.game_version,
         #                     replay_dir=args.replay_dir)
         # env = magent.GridWorld("battle", map_size=30)
-        args.map_size = 100  # 80
+        args.map_size = 80  # pursuit:180 270;battle:80 100
         args.env_name = 'battle'
         args.map = args.alg
-        args.name_time = 't'
+        args.name_time = 'est'
+        # alt_wo_per alt_wo_dq
         env = magent.GridWorld(args.env_name, map_size=args.map_size)
         # env = magent.GridWorld(get_config_double_attack(args.map_size))  # pursuit 180 270 330
         handles = env.get_handles()
@@ -116,8 +117,13 @@ if __name__ == '__main__':
         # env_info = env.get_env_info()
         # print(env.action_space[0][0])
         args.n_actions = env.action_space[0][0]
-        args.n_agents = 5  # 5
-        args.more_walls = 10  # 1
+        args.fixed_n_actions = env.action_space[1][0]
+        args.n_agents = 5  # pursuit:8;battle:5
+        args.more_walls = 1  # pursuit:1;battle:1 10
+        if args.alg == 'maven' and args.load_model:
+            args.est_mod_num = 1
+        else:
+            args.est_mod_num = 1
         args.use_v1 = False
         if args.use_v1:
             args.nei_n_agents = args.n_agents
